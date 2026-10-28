@@ -1,0 +1,38 @@
+# systemd unit for the Employee Monitor backend (the hub both EXEs + the web UI connect to).
+# Install on the Linux server:
+#   sudo useradd --system --home /opt/employee-monitor --shell /usr/sbin/nologin emmonitor   # once
+#   sudo mkdir -p /opt/employee-monitor /var/lib/employee-monitor/{screenshots,updates}
+#   sudo cp employee-monitor-api-0.1.0.jar /opt/employee-monitor/
+#   sudo cp server.env /opt/employee-monitor/           # the git-ignored real env
+#   sudo chown -R emmonitor:emmonitor /opt/employee-monitor /var/lib/employee-monitor
+#   sudo chmod 600 /opt/employee-monitor/server.env
+#   sudo cp deployment/employee-monitor.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now employee-monitor
+#   journalctl -u employee-monitor -f          # watch startup / Flyway migration / bootstrap admin
+
+[Unit]
+Description=Employee Monitor API
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=emmonitor
+Group=emmonitor
+WorkingDirectory=/opt/employee-monitor
+EnvironmentFile=/opt/employee-monitor/server.env
+ExecStart=/usr/bin/java -XX:MaxRAMPercentage=75 -jar /opt/employee-monitor/employee-monitor-api-0.1.0.jar
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+TimeoutStopSec=30
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/employee-monitor
+
+[Install]
+WantedBy=multi-user.target

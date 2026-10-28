@@ -39,6 +39,10 @@ set -a; . /path/to/server.env; set +a
 java -jar target/employee-monitor-api-*.jar
 ```
 
+**As a service (keep it always up — it's the hub both EXEs depend on):** install the prebuilt
+`employee-monitor-api-0.1.0.jar` with the systemd unit in `deployment/employee-monitor.service` (its header has the
+copy-paste install steps + `journalctl` to watch the first-boot migration and bootstrap admin).
+
 **Docker:** build the image from `backend/employee-monitor-api/Dockerfile` and pass `server.env` via `--env-file`.
 Note: if the backend runs in a container and Postgres/Redis run on the host, `localhost` inside the container is the
 container, not the host — use `host.docker.internal` (or the host's private IP / a shared Docker network) in
