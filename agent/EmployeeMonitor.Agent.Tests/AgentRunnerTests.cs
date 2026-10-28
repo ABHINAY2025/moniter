@@ -106,6 +106,36 @@ public class AgentRunnerTests
     }
 
     [Fact]
+    public async Task ReenrollsWhenStoredCredentialIsRejected()
+    {
+        // A stale credential from a previous backend (or a server DB reset): the server rejects it with 401.
+        // The agent must clear it, enroll again with the token, and keep running instead of crashing.
+        var store = new CredentialStore(new InMemorySecureStore(), NullLogger<CredentialStore>.Instance);
+        store.Save(new DeviceCredential(99, "DEV-OLD", "dvt_stale", null, null, "hw-test-guid"));
+
+        var api = new FakeBackendApi { RejectPolicyForToken = "dvt_stale" };
+        var options = Options.Create(new AgentOptions
+        {
+            BackendBaseUrl = "http://localhost", EnrollmentToken = "enr_test",
+            ActivityPollSeconds = 1, EventFlushSeconds = 1, DefaultHeartbeatSeconds = 10,
+        });
+        var runner = new AgentRunner(api, store, new FakeSystemInfo(), new FakeInputMonitor(),
+            new FakeSystemEventSource(), new FakeClock(), NewCollector(), new FakeScreenCaptureProvider { Next = null },
+            options, NullLogger<AgentRunner>.Instance);
+
+        using var cts = new CancellationTokenSource();
+        var run = runner.RunAsync(cts.Token);
+
+        // It recovers to a live, heartbeating state rather than throwing out of RunAsync.
+        await WaitUntil(() => api.HeartbeatCalls >= 1, TimeSpan.FromSeconds(10));
+        api.RegisterCalls.Should().Be(1);                      // re-enrolled exactly once
+        runner.Credential.DeviceCode.Should().Be("DEV-10042"); // now using the fresh credential
+
+        cts.Cancel();
+        await run;
+    }
+
+    [Fact]
     public async Task FailsFastWhenNotEnrolledAndNoToken()
     {
         var (runner, _, _, _) = Build(enrollmentToken: null);

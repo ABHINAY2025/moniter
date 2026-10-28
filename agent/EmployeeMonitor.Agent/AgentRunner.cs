@@ -27,6 +27,7 @@ public sealed class AgentRunner
     private readonly SessionEventQueue _queue = new();
     private readonly ActivityTracker _tracker = new();
     private readonly object _gate = new();
+    private readonly SemaphoreSlim _reenrollLock = new(1, 1);
 
     private DeviceCredential _credential = null!;
     private PolicySettings _policy = null!;
@@ -75,7 +76,19 @@ public sealed class AgentRunner
 
         // Mark the agent up, then sync policy which also establishes the current activity baseline.
         EmitSession(SessionEventTypes.AgentStart);
-        await SyncPolicyAsync(ct);
+        try
+        {
+            await SyncPolicyAsync(ct);
+        }
+        catch (BackendException ex) when (ex.IsAuthFailure)
+        {
+            // The stored credential is no longer accepted (a stale device.dat from a previous backend, a
+            // server DB reset, or the device removed/rotated server-side). Clear it and enroll again with the
+            // enrollment token instead of crashing the agent.
+            _logger.LogWarning("Stored credential rejected on startup ({Code}); re-enrolling.", ex.ErrorCode);
+            await ReenrollAsync(_credential.DeviceToken, ct);
+            await SyncPolicyAsync(ct);
+        }
 
         var liveView = new LiveViewClient(_options.BackendBaseUrl, _screenCapture, _logger,
             () => _policy?.LiveView ?? false,
@@ -120,6 +133,16 @@ public sealed class AgentRunner
             return;
         }
 
+        await EnrollWithTokenAsync(ct);
+    }
+
+    /// <summary>
+    /// Registers this device with the backend using the enrollment token and persists the returned credential.
+    /// Used for first-run enrollment and for recovery when a stored credential is rejected
+    /// (see <see cref="ReenrollAsync"/>).
+    /// </summary>
+    private async Task EnrollWithTokenAsync(CancellationToken ct)
+    {
         var token = Environment.GetEnvironmentVariable("EM_ENROLLMENT_TOKEN") ?? _options.EnrollmentToken;
         if (string.IsNullOrWhiteSpace(token))
         {
@@ -142,18 +165,44 @@ public sealed class AgentRunner
         _logger.LogInformation("Enrolled as {DeviceCode}", response.DeviceCode);
     }
 
+    /// <summary>
+    /// Recovers from a rejected device credential by clearing it and enrolling again with the enrollment token.
+    /// Guarded so that if several loops observe the 401 at once, only the first re-enrolls; the others see the
+    /// refreshed credential and return without consuming another enrollment-token use. <paramref name="rejectedToken"/>
+    /// is the device token that failed, so a caller whose token was already replaced becomes a no-op.
+    /// </summary>
+    private async Task ReenrollAsync(string rejectedToken, CancellationToken ct)
+    {
+        await _reenrollLock.WaitAsync(ct);
+        try
+        {
+            if (!string.Equals(_credential?.DeviceToken, rejectedToken, StringComparison.Ordinal))
+            {
+                return; // another loop already re-enrolled with a fresh credential
+            }
+            _logger.LogWarning("Clearing the rejected device credential and re-enrolling.");
+            _credentials.Clear();
+            await EnrollWithTokenAsync(ct);
+        }
+        finally
+        {
+            _reenrollLock.Release();
+        }
+    }
+
     // ---------- Loops ----------
 
     private async Task HeartbeatLoop(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
+            var deviceToken = _credential.DeviceToken;
             try
             {
                 var snap = _monitoring.Snapshot();
                 var request = new HeartbeatRequest(_tracker.StatusString, _clock.UtcNow, _agentVersion,
                     _systemInfo.PrimaryIpAddress, snap.App, snap.Network, snap.Zscaler);
-                var response = await _api.HeartbeatAsync(request, _credential.DeviceToken, ct);
+                var response = await _api.HeartbeatAsync(request, deviceToken, ct);
                 if (!string.Equals(response.PolicyRevision, _policyRevision, StringComparison.Ordinal))
                 {
                     _logger.LogInformation("Policy changed {Old} -> {New}; re-syncing",
@@ -167,9 +216,23 @@ public sealed class AgentRunner
             }
             catch (BackendException ex) when (ex.IsAuthFailure)
             {
-                _logger.LogError("Device credential rejected ({Code}); stopping monitoring. Re-enrollment required.",
-                    ex.ErrorCode);
-                break;
+                // The credential was rejected mid-run (token expired/rotated, or the device removed
+                // server-side). Try to recover in place so monitoring resumes without waiting for a restart.
+                _logger.LogWarning("Device credential rejected ({Code}); attempting re-enrollment.", ex.ErrorCode);
+                try
+                {
+                    await ReenrollAsync(deviceToken, ct);
+                    _logger.LogInformation("Re-enrolled as {DeviceCode}; monitoring resumes.", _credential.DeviceCode);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception reEx)
+                {
+                    _logger.LogError(reEx, "Re-enrollment failed; stopping monitoring until the agent restarts.");
+                    break;
+                }
             }
             catch (Exception ex)
             {

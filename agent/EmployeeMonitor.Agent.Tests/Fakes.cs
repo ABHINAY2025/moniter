@@ -1,3 +1,4 @@
+using System.Net;
 using EmployeeMonitor.Agent.Api;
 using EmployeeMonitor.Agent.Monitoring;
 using EmployeeMonitor.Agent.Platform;
@@ -95,6 +96,10 @@ internal sealed class FakeBackendApi : IBackendApi
     public PolicySettings Policy { get; set; } = TestData.Policy();
     public string PolicyRevision { get; set; } = "1-1";
 
+    /// <summary>When set, GetPolicyAsync throws a 401 auth failure for this device token (simulates a credential
+    /// the backend no longer accepts), so the re-enrollment path can be exercised.</summary>
+    public string? RejectPolicyForToken { get; set; }
+
     public IReadOnlyList<string> Events
     {
         get { lock (_gate) { return _events.ToList(); } }
@@ -118,8 +123,14 @@ internal sealed class FakeBackendApi : IBackendApi
         return Task.FromResult(new HeartbeatResponse(DateTimeOffset.UnixEpoch, PolicyRevision, 10));
     }
 
-    public Task<PolicyResponse> GetPolicyAsync(string deviceToken, CancellationToken ct) =>
-        Task.FromResult(new PolicyResponse(1, "Default policy", "DEFAULT", PolicyRevision, Policy, DateTimeOffset.UnixEpoch));
+    public Task<PolicyResponse> GetPolicyAsync(string deviceToken, CancellationToken ct)
+    {
+        if (RejectPolicyForToken is not null && deviceToken == RejectPolicyForToken)
+        {
+            throw new BackendException("Authentication required", HttpStatusCode.Unauthorized, "UNAUTHORIZED");
+        }
+        return Task.FromResult(new PolicyResponse(1, "Default policy", "DEFAULT", PolicyRevision, Policy, DateTimeOffset.UnixEpoch));
+    }
 
     public Task<AgentIdentityResponse> GetIdentityAsync(string deviceToken, CancellationToken ct) =>
         Task.FromResult(new AgentIdentityResponse(42, "DEV-10042", "TEST-PC",

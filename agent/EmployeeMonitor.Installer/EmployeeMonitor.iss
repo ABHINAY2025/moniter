@@ -43,7 +43,7 @@ begin
     'Enter the enrollment token issued by your IT administrator and the server URL.');
   ConfigPage.Add('Enrollment token:', False);
   ConfigPage.Add('Backend URL (https://...):', False);
-  ConfigPage.Values[1] := 'https://monitor.company.com';
+  ConfigPage.Values[1] := 'https://api.quantumdataleap.ai';
 end;
 
 function GetToken(Param: string): string;
