@@ -10,15 +10,15 @@ Connect as the `postgres` superuser and create an **empty** database. Flyway cre
 
 ```sql
 -- psql -U postgres -h localhost
-CREATE DATABASE quantumdataleap WITH ENCODING 'UTF8' TEMPLATE template0;
+CREATE DATABASE employee WITH ENCODING 'UTF8' TEMPLATE template0;
 ```
 
 That's it — the `postgres` user (whose password lives only in the git-ignored `deployment/server.env`, never in
 the repo) already owns it. The backend connects with
-`jdbc:postgresql://localhost:5432/quantumdataleap?options=-c%20TimeZone=Asia/Kolkata` (see `deployment/server.env`). Timestamps are stored in UTC; the `Asia/Kolkata` option only sets the session TZ.
+`jdbc:postgresql://localhost:5432/employee?options=-c%20TimeZone=Asia/Kolkata` (see `deployment/server.env`). Timestamps are stored in UTC; the `Asia/Kolkata` option only sets the session TZ.
 
 > Least-privilege option (recommended later): create a dedicated role that owns just this DB instead of using the
-> `postgres` superuser — `CREATE ROLE em LOGIN PASSWORD '…'; CREATE DATABASE quantumdataleap OWNER em;` — and point
+> `postgres` superuser — `CREATE ROLE em LOGIN PASSWORD '…'; CREATE DATABASE employee OWNER em;` — and point
 > `DB_USERNAME`/`DB_PASSWORD` at it.
 
 ## 2. Supply the environment
