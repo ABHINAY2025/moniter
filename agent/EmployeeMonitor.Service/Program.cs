@@ -5,6 +5,7 @@ using EmployeeMonitor.Agent.Monitoring;
 using EmployeeMonitor.Agent.Platform;
 using EmployeeMonitor.Service;
 using EmployeeMonitor.Sessions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 // Make the process per-monitor DPI aware before anything creates a window/DC, so screen capture grabs the full
@@ -18,7 +19,11 @@ if (OperatingSystem.IsWindows())
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Runs as a Windows Service when launched by the SCM, and as a normal console app otherwise.
+// The agent runs windowless (no console), so also log to a daily file for diagnostics.
+builder.Logging.AddProvider(new FileLoggerProvider(Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "EmployeeMonitor", "logs")));
+
+// Runs as a Windows Service when launched by the SCM, and as a normal background process otherwise.
 builder.Services.AddWindowsService(options => options.ServiceName = "EmployeeMonitorAgent");
 
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentOptions.SectionName));

@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <OutputType>Exe</OutputType>
+    <!-- WinExe = no console window. The agent runs silently in the background (logon task / service);
+         logs go to %ProgramData%\EmployeeMonitor\logs instead of a terminal. -->
+    <OutputType>WinExe</OutputType>
     <RootNamespace>EmployeeMonitor.Service</RootNamespace>
     <AssemblyName>EmployeeMonitorAgent</AssemblyName>
     <UserSecretsId>employee-monitor-agent</UserSecretsId>
