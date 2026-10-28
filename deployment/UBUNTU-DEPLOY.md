@@ -11,6 +11,23 @@ Artifacts you copy to the server (from `monitering\` on your PC):
 
 ---
 
+## Quickstart (automated)
+
+One script does everything below. On the server:
+```bash
+git clone https://github.com/ABHINAY2025/moniter.git
+cd moniter
+cp deployment/server.env.example deployment/server.env
+nano deployment/server.env          # fill in the real secrets (DB/Redis/JWT/admin/screenshot)
+sudo bash deployment/setup.sh
+```
+It installs Java/PostgreSQL/Redis, sets the passwords and creates the `employee` DB, **builds the jar from the cloned
+source** (so you don't have to copy it over), installs the systemd service, and installs cloudflared. The only
+interactive part is the Cloudflare tunnel login at the end (or set `CLOUDFLARE_TUNNEL_TOKEN` to skip it). Re-running
+the script is safe.
+
+The numbered steps below are exactly what the script automates — use them for a manual install or to debug.
+
 ## 1. Install packages
 
 ```bash
@@ -56,7 +73,7 @@ sudo useradd --system --home /opt/employee-monitor --shell /usr/sbin/nologin emm
 sudo mkdir -p /opt/employee-monitor /var/lib/employee-monitor/{screenshots,updates}
 
 # from your PC: scp employee-monitor-api-0.1.0.jar server.env you@server:/tmp/
-sudo mv /tmp/employee-monitor-api-0.1.0.jar /opt/employee-monitor/
+sudo mv /tmp/employee-monitor-api-0.1.0.jar /opt/employee-monitor/app.jar
 sudo mv /tmp/server.env /opt/employee-monitor/
 sudo chown -R emmonitor:emmonitor /opt/employee-monitor /var/lib/employee-monitor
 sudo chmod 600 /opt/employee-monitor/server.env
