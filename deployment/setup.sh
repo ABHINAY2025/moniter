@@ -40,6 +40,7 @@ grep -q "__SET_ON_SERVER__" "$ENV_FILE" && die "$ENV_FILE still has __SET_ON_SER
 val() { grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-; }
 DB_PASSWORD="$(val DB_PASSWORD)"
 REDIS_PASSWORD="$(val REDIS_PASSWORD)"
+REDIS_PORT="$(val REDIS_PORT)"; REDIS_PORT="${REDIS_PORT:-6380}"
 DB_URL="$(val DB_URL)"
 DB_USERNAME="$(val DB_USERNAME)"
 DB_NAME="$(printf '%s' "$DB_URL" | sed -E 's#.*/([^/?]+)(\?.*)?$#\1#')"
@@ -87,12 +88,37 @@ else
   log "Database '$DB_NAME' already exists"
 fi
 
-# ---- 4. Redis: password + localhost ----
-log "Configuring Redis"
-sed -i '/^requirepass /d' /etc/redis/redis.conf
-echo "requirepass $REDIS_PASSWORD" >> /etc/redis/redis.conf
-systemctl enable redis-server
-systemctl restart redis-server
+# ---- 4. Redis: a DEDICATED instance so any other app on the system Redis is untouched ----
+# We never modify /etc/redis/redis.conf or restart redis-server; we run a second instance on $REDIS_PORT.
+log "Configuring a dedicated Redis instance on port $REDIS_PORT (the system Redis is left untouched)"
+install -d -o redis -g redis /var/lib/redis-employee-monitor
+cat > /etc/redis/employee-monitor.conf <<CONF
+port $REDIS_PORT
+bind 127.0.0.1 -::1
+requirepass $REDIS_PASSWORD
+dir /var/lib/redis-employee-monitor
+appendonly no
+supervised systemd
+CONF
+chown redis:redis /etc/redis/employee-monitor.conf
+cat > /etc/systemd/system/redis-employee-monitor.service <<UNIT
+[Unit]
+Description=Redis (Employee Monitor dedicated instance)
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/redis-server /etc/redis/employee-monitor.conf
+User=redis
+Group=redis
+RuntimeDirectory=redis-employee-monitor
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now redis-employee-monitor
 
 # ---- 5. app user, dirs, artifacts ----
 log "Installing application files"

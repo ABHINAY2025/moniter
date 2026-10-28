@@ -58,13 +58,38 @@ CREATE DATABASE employee WITH ENCODING 'UTF8' TEMPLATE template0;
 PostgreSQL listens on `127.0.0.1:5432` by default on Ubuntu — leave it that way (do not touch `listen_addresses`).
 Confirm it is not public: `sudo ss -tlnp | grep 5432` should show only `127.0.0.1`.
 
-## 3. Redis — set a password (bound to localhost)
+## 3. Redis — a dedicated instance (leaves any other app's Redis untouched)
 
-Edit `/etc/redis/redis.conf`: ensure `bind 127.0.0.1 ::1`, set `requirepass YOUR_REDIS_PASSWORD` (the
-`REDIS_PASSWORD` from server.env), then:
+If the system Redis (`6379`) is used by another app, **do not** change its password or restart it. Run a second,
+isolated instance on `6380` instead (this is what `setup.sh` does):
 ```bash
-sudo systemctl restart redis-server
+sudo install -d -o redis -g redis /var/lib/redis-employee-monitor
+sudo tee /etc/redis/employee-monitor.conf >/dev/null <<CONF
+port 6380
+bind 127.0.0.1 -::1
+requirepass YOUR_REDIS_PASSWORD      # the REDIS_PASSWORD from server.env
+dir /var/lib/redis-employee-monitor
+appendonly no
+supervised systemd
+CONF
+sudo tee /etc/systemd/system/redis-employee-monitor.service >/dev/null <<'UNIT'
+[Unit]
+Description=Redis (Employee Monitor dedicated instance)
+After=network.target
+[Service]
+Type=notify
+ExecStart=/usr/bin/redis-server /etc/redis/employee-monitor.conf
+User=redis
+Group=redis
+RuntimeDirectory=redis-employee-monitor
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+UNIT
+sudo systemctl daemon-reload && sudo systemctl enable --now redis-employee-monitor
 ```
+`server.env` then uses `REDIS_PORT=6380`. (If Redis is *not* shared, you can instead just set `requirepass` on the
+system Redis and use `6379` — but the dedicated instance is the safe default.)
 
 ## 4. App user, directories, and artifacts
 
