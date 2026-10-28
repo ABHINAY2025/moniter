@@ -38,21 +38,27 @@ public sealed class LiveViewClient
     private volatile bool _audioRunning;
     private const int MaxAudioQueue = 40;
 
+    private readonly int _frameMaxEdge;
+    private readonly int _frameQuality;
+
     public LiveViewClient(string baseUrl, Monitoring.IScreenCaptureProvider capture, ILogger logger,
-        Func<bool> liveViewAllowed, Func<bool> isLocked, int fps = 2, Func<ClientWebSocket>? socketFactory = null,
+        Func<bool> liveViewAllowed, Func<bool> isLocked, int fps = 8, Func<ClientWebSocket>? socketFactory = null,
         Monitoring.ISystemAudioCapture? audio = null, Monitoring.IRemoteInputInjector? input = null,
-        Monitoring.ISystemClipboard? clipboard = null)
+        Monitoring.ISystemClipboard? clipboard = null, int frameMaxEdge = 1366, int frameQuality = 60)
     {
         _wsUri = BuildWsUri(baseUrl);
         _capture = capture;
         _logger = logger;
         _liveViewAllowed = liveViewAllowed;
         _isLocked = isLocked;
-        _frameIntervalMs = Math.Max(200, 1000 / Math.Max(1, fps));
+        // Floor of 80ms allows up to ~12fps; the send loop self-paces to the link, so smaller frames = higher fps.
+        _frameIntervalMs = Math.Max(80, 1000 / Math.Max(1, fps));
         _socketFactory = socketFactory;
         _audio = audio;
         _input = input;
         _clipboard = clipboard;
+        _frameMaxEdge = frameMaxEdge;
+        _frameQuality = frameQuality;
     }
 
     public bool Active => _activeSessionId is not null;
@@ -104,7 +110,7 @@ public sealed class LiveViewClient
         Monitoring.ScreenCapture? frame;
         try
         {
-            frame = _capture.Capture();
+            frame = _capture.Capture(_frameMaxEdge, _frameQuality);
         }
         catch (Exception ex)
         {

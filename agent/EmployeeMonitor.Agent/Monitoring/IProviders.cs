@@ -87,7 +87,15 @@ public sealed record ScreenCapture(byte[] Bytes, string ContentType, int Width, 
 /// <summary>Captures the current screen when policy permits. Returns null if capture is unavailable.</summary>
 public interface IScreenCaptureProvider
 {
+    /// <summary>Full-resolution capture (JPEG, default quality) — used for stored screenshots.</summary>
     ScreenCapture? Capture();
+
+    /// <summary>
+    /// Capture downscaled for live streaming: the long edge is capped at <paramref name="maxLongEdge"/>
+    /// (0 = no scaling) and encoded at JPEG <paramref name="quality"/> (1–100). Smaller + lighter so the
+    /// frame rate can keep up over a constrained uplink.
+    /// </summary>
+    ScreenCapture? Capture(int maxLongEdge, int quality);
 }
 
 /// <summary>Pure policy gate for whether a screenshot may be captured right now.</summary>

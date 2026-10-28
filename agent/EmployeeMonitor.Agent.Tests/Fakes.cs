@@ -45,6 +45,8 @@ internal sealed class FakeScreenCaptureProvider : IScreenCaptureProvider
         Captures++;
         return Next;
     }
+
+    public ScreenCapture? Capture(int maxLongEdge, int quality) => Capture();
 }
 
 internal sealed class InMemorySecureStore : ISecureStore

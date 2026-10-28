@@ -58,7 +58,9 @@ public sealed class GdiScreenCaptureProvider : IScreenCaptureProvider
         }
     }
 
-    public ScreenCapture? Capture()
+    public ScreenCapture? Capture() => Capture(0, (int)JpegQuality);
+
+    public ScreenCapture? Capture(int maxLongEdge, int quality)
     {
         int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
         int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
@@ -68,20 +70,49 @@ public sealed class GdiScreenCaptureProvider : IScreenCaptureProvider
         {
             return null;
         }
+        quality = Math.Clamp(quality, 1, 100);
         try
         {
-            using var bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
-            using (var graphics = Graphics.FromImage(bitmap))
+            using var full = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+            using (var graphics = Graphics.FromImage(full))
             {
                 // Source origin is the virtual-screen top-left (may be negative on multi-monitor setups).
                 graphics.CopyFromScreen(x, y, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
             }
-            using var stream = new MemoryStream();
-            var encoder = ImageCodecInfo.GetImageEncoders().First(c => c.FormatID == ImageFormat.Jpeg.Guid);
-            using var parameters = new EncoderParameters(1);
-            parameters.Param[0] = new EncoderParameter(Encoder.Quality, JpegQuality);
-            bitmap.Save(stream, encoder, parameters);
-            return new ScreenCapture(stream.ToArray(), "image/jpeg", width, height);
+
+            // Optionally downscale so the long edge fits maxLongEdge (keeps aspect ratio). 0 = send full size.
+            Bitmap toEncode = full;
+            Bitmap? scaled = null;
+            int outWidth = width, outHeight = height;
+            int longEdge = Math.Max(width, height);
+            if (maxLongEdge > 0 && longEdge > maxLongEdge)
+            {
+                double factor = (double)maxLongEdge / longEdge;
+                outWidth = Math.Max(1, (int)Math.Round(width * factor));
+                outHeight = Math.Max(1, (int)Math.Round(height * factor));
+                scaled = new Bitmap(outWidth, outHeight, PixelFormat.Format24bppRgb);
+                using (var g = Graphics.FromImage(scaled))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear;
+                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                    g.DrawImage(full, 0, 0, outWidth, outHeight);
+                }
+                toEncode = scaled;
+            }
+
+            try
+            {
+                using var stream = new MemoryStream();
+                var encoder = ImageCodecInfo.GetImageEncoders().First(c => c.FormatID == ImageFormat.Jpeg.Guid);
+                using var parameters = new EncoderParameters(1);
+                parameters.Param[0] = new EncoderParameter(Encoder.Quality, (long)quality);
+                toEncode.Save(stream, encoder, parameters);
+                return new ScreenCapture(stream.ToArray(), "image/jpeg", outWidth, outHeight);
+            }
+            finally
+            {
+                scaled?.Dispose();
+            }
         }
         catch (Exception)
         {
