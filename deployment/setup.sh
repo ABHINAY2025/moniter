@@ -43,7 +43,9 @@ REDIS_PASSWORD="$(val REDIS_PASSWORD)"
 REDIS_PORT="$(val REDIS_PORT)"; REDIS_PORT="${REDIS_PORT:-6380}"
 DB_URL="$(val DB_URL)"
 DB_USERNAME="$(val DB_USERNAME)"
-DB_NAME="$(printf '%s' "$DB_URL" | sed -E 's#.*/([^/?]+)(\?.*)?$#\1#')"
+# Strip the query string first, THEN take the path's last segment — otherwise a '/' inside
+# ?options=...TimeZone=Asia/Kolkata would be mistaken for the DB name.
+DB_NAME="$(printf '%s' "$DB_URL" | sed -E 's#\?.*$##; s#.*/##')"
 [ -n "$DB_PASSWORD" ] && [ -n "$DB_NAME" ] || die "Could not read DB_PASSWORD / DB_URL from $ENV_FILE"
 log "Target database: '$DB_NAME' (user '$DB_USERNAME')"
 
@@ -68,7 +70,7 @@ fi
 JAR="$(ls -1 "$REPO_ROOT"/backend/employee-monitor-api/target/employee-monitor-api-*.jar "$SCRIPT_DIR"/employee-monitor-api-*.jar 2>/dev/null | grep -v '\.original' | head -1 || true)"
 if [ -z "$JAR" ]; then
   log "No prebuilt jar found — building from source (installing Maven + JDK)"
-  apt-get install -y maven temurin-21-jdk || apt-get install -y maven openjdk-21-jdk-headless
+  apt-get install -y maven openjdk-21-jdk-headless || apt-get install -y maven temurin-21-jdk
   ( cd "$REPO_ROOT/backend/employee-monitor-api" && mvn -q -DskipTests clean package )
   JAR="$(ls -1 "$REPO_ROOT"/backend/employee-monitor-api/target/employee-monitor-api-*.jar | grep -v '\.original' | head -1)"
 fi
