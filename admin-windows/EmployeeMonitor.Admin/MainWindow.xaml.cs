@@ -53,6 +53,7 @@ public sealed partial class MainWindow : Window
             "devices" => typeof(DevicesPage),
             "webaccess" => typeof(WebAccessPage),
             "alerts" => typeof(AlertsPage),
+            "policy" => typeof(PolicyPage),
             _ => typeof(DashboardPage),
         };
         if (ContentFrame.CurrentSourcePageType != page)

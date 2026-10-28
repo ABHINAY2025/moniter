@@ -64,6 +64,31 @@ public sealed record DeviceDto(
 public sealed record EnrollmentTokenCreated(long Id, string Token, string? Description, int MaxUses,
     DateTimeOffset ExpiresAt);
 
+/// <summary>Server-controlled monitoring policy delivered to agents. Mirrors the backend PolicySettings record.</summary>
+public sealed record PolicySettingsDto(
+    bool SessionMonitoring,
+    int IdleThresholdSeconds,
+    bool ApplicationMonitoring,
+    bool WebsiteMonitoring,
+    bool UsbMonitoring,
+    bool NetworkMonitoring,
+    bool ZscalerMonitoring,
+    bool Screenshots,
+    int ScreenshotIntervalSeconds,
+    bool LiveView,
+    int LiveViewMaxMinutes,
+    int HeartbeatIntervalSeconds,
+    int PolicySyncIntervalSeconds,
+    string MonitoringStart,
+    string MonitoringEnd,
+    IReadOnlyList<string> WorkDays,
+    string Timezone,
+    int RetentionDays,
+    int ScreenshotRetentionDays);
+
+public sealed record PolicyResponseDto(long PolicyId, string Name, string Source, string Revision,
+    PolicySettingsDto Settings, DateTimeOffset UpdatedAt);
+
 public sealed record DashboardSummary(
     long TotalEmployees, long Online, long Idle, long Locked, long Offline,
     long ActiveDevices, long OnlineDevices, long UnassignedDevices, DateTimeOffset GeneratedAt);

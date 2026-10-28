@@ -139,6 +139,15 @@ public sealed class AdminApiClient : IAdminApi
             Content = JsonContent.Create(new { employeeId }, options: JsonOptions),
         }, authenticated: true, ct);
 
+    public Task<PolicyResponseDto> GetDefaultPolicyAsync(CancellationToken ct = default) =>
+        GetAsync<PolicyResponseDto>("/api/policies/default", ct);
+
+    public Task<PolicyResponseDto> UpdateDefaultPolicyAsync(PolicySettingsDto settings, CancellationToken ct = default) =>
+        SendAsync<PolicyResponseDto>(() => new HttpRequestMessage(HttpMethod.Put, "/api/policies/default")
+        {
+            Content = JsonContent.Create(settings, options: JsonOptions),
+        }, authenticated: true, ct);
+
     public Task<PageResponse<AlertDto>> GetAlertsAsync(bool unacknowledged, int page, int size,
         CancellationToken ct = default) =>
         GetAsync<PageResponse<AlertDto>>(

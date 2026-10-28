@@ -36,6 +36,7 @@ public static class ServiceConfig
         services.AddTransient<DevicesViewModel>();
         services.AddTransient<EmployeeDetailViewModel>();
         services.AddTransient<LiveViewViewModel>();
+        services.AddTransient<PolicyViewModel>();
 
         return services.BuildServiceProvider();
     }

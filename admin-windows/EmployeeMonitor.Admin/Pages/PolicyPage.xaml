@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="EmployeeMonitor.Admin.Pages.PolicyPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:EmployeeMonitor.Admin.Core.ViewModels">
+
+    <Grid Padding="28,24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="2">
+            <TextBlock Text="Settings" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Monitoring policy — applies to every device unless a device-specific override is set."
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="13" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Spacing="8">
+            <InfoBar IsOpen="True" Severity="Error" IsClosable="False"
+                     Message="{x:Bind ViewModel.Error, Mode=OneWay}"
+                     Visibility="{x:Bind ViewModel.Error, Mode=OneWay, Converter={StaticResource StringToVisibility}}" />
+            <InfoBar IsOpen="True" Severity="Success" IsClosable="False"
+                     Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                     Visibility="{x:Bind ViewModel.StatusMessage, Mode=OneWay, Converter={StaticResource StringToVisibility}}" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+            <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+
+                <!-- Monitoring categories -->
+                <Border Style="{StaticResource GlassPanel}" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Monitoring" FontWeight="SemiBold" FontSize="15" />
+                        <ToggleSwitch Header="Session &amp; activity (active / idle / locked)" OnContent="On" OffContent="Off"
+                                      IsOn="{x:Bind ViewModel.SessionMonitoring, Mode=TwoWay}" />
+                        <ToggleSwitch Header="Applications (foreground app usage)" OnContent="On" OffContent="Off"
+                                      IsOn="{x:Bind ViewModel.ApplicationMonitoring, Mode=TwoWay}" />
+                        <ToggleSwitch Header="Websites (domain-level only)" OnContent="On" OffContent="Off"
+                                      IsOn="{x:Bind ViewModel.WebsiteMonitoring, Mode=TwoWay}" />
+                        <ToggleSwitch Header="USB / removable drives" OnContent="On" OffContent="Off"
+                                      IsOn="{x:Bind ViewModel.UsbMonitoring, Mode=TwoWay}" />
+                        <ToggleSwitch Header="Network (SSID / connection)" OnContent="On" OffContent="Off"
+                                      IsOn="{x:Bind ViewModel.NetworkMonitoring, Mode=TwoWay}" />
+                        <ToggleSwitch Header="Zscaler status" OnContent="On" OffContent="Off"
+                                      IsOn="{x:Bind ViewModel.ZscalerMonitoring, Mode=TwoWay}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Screenshots -->
+                <Border Style="{StaticResource GlassPanel}" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Screenshots" FontWeight="SemiBold" FontSize="15" />
+                        <ToggleSwitch Header="Capture periodic screenshots" OnContent="On" OffContent="Off"
+                                      IsOn="{x:Bind ViewModel.Screenshots, Mode=TwoWay}" />
+                        <ComboBox Header="Interval (minutes)" MinWidth="160"
+                                  ItemsSource="{x:Bind ViewModel.ScreenshotIntervalMinutesOptions}"
+                                  SelectedItem="{x:Bind ViewModel.ScreenshotIntervalMinutes, Mode=TwoWay}" />
+                        <NumberBox Header="Keep screenshots for (days)" Minimum="1" Maximum="365" SmallChange="1"
+                                   SpinButtonPlacementMode="Inline"
+                                   Value="{x:Bind ViewModel.ScreenshotRetentionDays, Mode=TwoWay}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Live view -->
+                <Border Style="{StaticResource GlassPanel}" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Live view &amp; remote control" FontWeight="SemiBold" FontSize="15" />
+                        <ToggleSwitch Header="Allow live screen view" OnContent="On" OffContent="Off"
+                                      IsOn="{x:Bind ViewModel.LiveView, Mode=TwoWay}" />
+                        <NumberBox Header="Max session length (minutes)" Minimum="1" Maximum="240" SmallChange="5"
+                                   SpinButtonPlacementMode="Inline"
+                                   Value="{x:Bind ViewModel.LiveViewMaxMinutes, Mode=TwoWay}" />
+                        <TextBlock TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="Live view always shows the employee a 'Live screen: Active' indicator, and taking control requires on-screen consent." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Work hours -->
+                <Border Style="{StaticResource GlassPanel}" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Work hours" FontWeight="SemiBold" FontSize="15" />
+                        <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="Activity monitoring only runs inside this window on work days (enforcement like web blocking stays on continuously)." />
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <TextBox Header="Start (HH:mm)" Width="130"
+                                     Text="{x:Bind ViewModel.MonitoringStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Header="End (HH:mm)" Width="130"
+                                     Text="{x:Bind ViewModel.MonitoringEnd, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBox Header="Timezone (IANA)" Width="220"
+                                     Text="{x:Bind ViewModel.Timezone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <TextBlock Text="Work days" FontSize="12" Margin="0,4,0,0"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <CheckBox Content="Mon" IsChecked="{x:Bind ViewModel.WorkMonday, Mode=TwoWay}" />
+                            <CheckBox Content="Tue" IsChecked="{x:Bind ViewModel.WorkTuesday, Mode=TwoWay}" />
+                            <CheckBox Content="Wed" IsChecked="{x:Bind ViewModel.WorkWednesday, Mode=TwoWay}" />
+                            <CheckBox Content="Thu" IsChecked="{x:Bind ViewModel.WorkThursday, Mode=TwoWay}" />
+                            <CheckBox Content="Fri" IsChecked="{x:Bind ViewModel.WorkFriday, Mode=TwoWay}" />
+                            <CheckBox Content="Sat" IsChecked="{x:Bind ViewModel.WorkSaturday, Mode=TwoWay}" />
+                            <CheckBox Content="Sun" IsChecked="{x:Bind ViewModel.WorkSunday, Mode=TwoWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Advanced -->
+                <Border Style="{StaticResource GlassPanel}" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Advanced" FontWeight="SemiBold" FontSize="15" />
+                        <NumberBox Header="Idle threshold (seconds)" Minimum="60" Maximum="3600" SmallChange="30"
+                                   SpinButtonPlacementMode="Inline"
+                                   Value="{x:Bind ViewModel.IdleThresholdSeconds, Mode=TwoWay}" />
+                        <NumberBox Header="Heartbeat interval (seconds)" Minimum="10" Maximum="300" SmallChange="5"
+                                   SpinButtonPlacementMode="Inline"
+                                   Value="{x:Bind ViewModel.HeartbeatIntervalSeconds, Mode=TwoWay}" />
+                        <NumberBox Header="Policy sync interval (seconds)" Minimum="60" Maximum="3600" SmallChange="30"
+                                   SpinButtonPlacementMode="Inline"
+                                   Value="{x:Bind ViewModel.PolicySyncIntervalSeconds, Mode=TwoWay}" />
+                        <NumberBox Header="Keep monitoring data for (days)" Minimum="1" Maximum="3650" SmallChange="30"
+                                   SpinButtonPlacementMode="Inline"
+                                   Value="{x:Bind ViewModel.RetentionDays, Mode=TwoWay}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid Grid.Row="3" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="{x:Bind ViewModel.Revision, Mode=OneWay}" />
+            <ProgressRing Grid.Column="1" Width="22" Height="22" VerticalAlignment="Center"
+                          IsActive="{x:Bind ViewModel.IsSaving, Mode=OneWay}" />
+            <Button Grid.Column="2" Content="Save changes" Style="{ThemeResource AccentButtonStyle}"
+                    Command="{x:Bind ViewModel.SaveCommand}" />
+        </Grid>
+    </Grid>
+</Page>

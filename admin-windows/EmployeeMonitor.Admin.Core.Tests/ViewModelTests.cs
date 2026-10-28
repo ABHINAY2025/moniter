@@ -279,6 +279,61 @@ public class EmployeesViewModelTests
     }
 }
 
+public class PolicyViewModelTests
+{
+    [Fact]
+    public async Task LoadMapsSettingsIntoEditableFields()
+    {
+        var api = new FakeAdminApi();
+        var vm = new PolicyViewModel(api);
+
+        await vm.LoadAsync();
+
+        vm.LiveView.Should().BeFalse();
+        vm.SessionMonitoring.Should().BeTrue();
+        vm.IdleThresholdSeconds.Should().Be(300);
+        vm.ScreenshotIntervalMinutes.Should().Be(15);      // 900s -> 15 min
+        vm.WorkMonday.Should().BeTrue();
+        vm.WorkSunday.Should().BeFalse();
+        vm.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SaveSendsEditedSettings()
+    {
+        var api = new FakeAdminApi();
+        var vm = new PolicyViewModel(api);
+        await vm.LoadAsync();
+
+        vm.LiveView = true;
+        vm.ScreenshotIntervalMinutes = 30;   // -> 1800s
+
+        await vm.SaveAsync();
+
+        api.LastSavedPolicy.Should().NotBeNull();
+        api.LastSavedPolicy!.LiveView.Should().BeTrue();
+        api.LastSavedPolicy.ScreenshotIntervalSeconds.Should().Be(1800);
+        vm.StatusMessage.Should().NotBeNull();
+        vm.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SaveWithNoWorkDaysIsRejectedLocally()
+    {
+        var api = new FakeAdminApi();
+        var vm = new PolicyViewModel(api);
+        await vm.LoadAsync();
+
+        vm.WorkMonday = vm.WorkTuesday = vm.WorkWednesday = false;
+        vm.WorkThursday = vm.WorkFriday = vm.WorkSaturday = vm.WorkSunday = false;
+
+        await vm.SaveAsync();
+
+        vm.Error.Should().Be("Select at least one work day.");
+        api.LastSavedPolicy.Should().BeNull();   // never hit the server
+    }
+}
+
 public class WebAccessViewModelTests
 {
     private static WebPolicyDto Policy(long id, string name, params (string action, string domain)[] rules) =>

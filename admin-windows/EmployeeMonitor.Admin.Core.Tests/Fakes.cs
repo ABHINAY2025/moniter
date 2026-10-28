@@ -64,6 +64,22 @@ internal sealed class FakeAdminApi : IAdminApi
     public Task<DeviceDto> GetDeviceAsync(long id, CancellationToken ct = default) =>
         Task.FromResult(Devices.First(d => d.Id == id));
 
+    public PolicyResponseDto DefaultPolicy { get; set; } = new(1, "Default policy", "DEFAULT", "1-1",
+        new PolicySettingsDto(true, 300, true, false, true, true, true, false, 900, false, 30, 30, 300,
+            "09:00", "18:00", new[] { "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY" }, "UTC", 90, 30),
+        DateTimeOffset.UnixEpoch);
+    public PolicySettingsDto? LastSavedPolicy { get; private set; }
+
+    public Task<PolicyResponseDto> GetDefaultPolicyAsync(CancellationToken ct = default) =>
+        Task.FromResult(DefaultPolicy);
+
+    public Task<PolicyResponseDto> UpdateDefaultPolicyAsync(PolicySettingsDto settings, CancellationToken ct = default)
+    {
+        LastSavedPolicy = settings;
+        DefaultPolicy = DefaultPolicy with { Settings = settings, Revision = "1-2" };
+        return Task.FromResult(DefaultPolicy);
+    }
+
     // Milestone 4
     public UsageReport ApplicationsReport { get; set; } = new(1, "2026-10-06", "UTC", 0, new List<UsageSlice>());
     public UsageReport WebsitesReport { get; set; } = new(1, "2026-10-06", "UTC", 0, new List<UsageSlice>());

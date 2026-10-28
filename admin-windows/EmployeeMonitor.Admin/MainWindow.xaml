@@ -58,6 +58,11 @@
                                         Value="{x:Bind AlertsViewModel.UnacknowledgedCount, Mode=OneWay}" />
                     </muxc:NavigationViewItem.InfoBadge>
                 </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Settings" Tag="policy">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
             </muxc:NavigationView.MenuItems>
 
             <muxc:NavigationView.PaneFooter>

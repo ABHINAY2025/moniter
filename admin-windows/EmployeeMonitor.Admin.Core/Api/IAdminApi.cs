@@ -28,6 +28,10 @@ public interface IAdminApi
 
     Task<DeviceDto> AssignDeviceAsync(long deviceId, long employeeId, CancellationToken ct = default);
 
+    // Monitoring policy (the shared default applied to every device unless overridden)
+    Task<PolicyResponseDto> GetDefaultPolicyAsync(CancellationToken ct = default);
+    Task<PolicyResponseDto> UpdateDefaultPolicyAsync(PolicySettingsDto settings, CancellationToken ct = default);
+
     Task<PageResponse<AlertDto>> GetAlertsAsync(bool unacknowledged, int page, int size, CancellationToken ct = default);
     Task<AlertDto> AcknowledgeAlertAsync(long alertId, CancellationToken ct = default);
 
