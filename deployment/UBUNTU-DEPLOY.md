@@ -1,12 +1,13 @@
 # Deploying the backend on an Ubuntu server
 
 Target: one Ubuntu 22.04/24.04 server running the backend + PostgreSQL + Redis together (that's why `server.env`
-uses `localhost`). PostgreSQL and Redis stay bound to localhost — never exposed to the internet. Only 80/443 are
-public, fronted by nginx (TLS) and optionally Cloudflare. Secrets live in `server.env` (never in git); this guide
-references them by name, it does not print their values.
+uses `localhost`). PostgreSQL and Redis stay bound to localhost — never exposed to the internet. The backend is
+published through a **Cloudflare Tunnel** — no nginx, no public IP, and **no inbound ports open at all** (cloudflared
+makes outbound connections only; TLS is terminated at Cloudflare's edge). Secrets live in `server.env` (never in
+git); this guide references them by name, it does not print their values.
 
 Artifacts you copy to the server (from `monitering\` on your PC):
-`employee-monitor-api-0.1.0.jar`, `server.env`, and `deployment/employee-monitor.service` + the nginx block below.
+`employee-monitor-api-0.1.0.jar`, `server.env`, and `deployment/employee-monitor.service`.
 
 ---
 
@@ -21,7 +22,7 @@ echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.n
 sudo apt update && sudo apt install -y temurin-21-jre
 #   (Ubuntu 24.04 alternative: sudo apt install -y openjdk-21-jre-headless)
 
-sudo apt install -y postgresql redis-server nginx
+sudo apt install -y postgresql redis-server
 java -version   # should print 21
 ```
 
@@ -72,76 +73,56 @@ journalctl -u employee-monitor -f
 On first boot watch for: Flyway running migrations `V1..V9`, then `Bootstrap SUPER_ADMIN 'admin' created`.
 Quick local check: `curl -s http://localhost:8090/actuator/health` → `{"status":"UP"}`.
 
-> Note: `server.env` sets `REQUIRE_HTTPS=true` + `FORWARD_HEADERS_STRATEGY=framework`, so the app expects to sit
-> behind the TLS proxy in step 6. If you curl it over plain HTTP from outside, it will reject — that's by design.
+> Note: `server.env` sets `REQUIRE_HTTPS=true` + `FORWARD_HEADERS_STRATEGY=framework`, so the app trusts the
+> `X-Forwarded-Proto: https` that Cloudflare adds (step 6) and treats tunneled requests as secure. A direct plain-HTTP
+> curl *from outside* would be rejected — that's by design. (If anything is rejected unexpectedly while everything
+> goes through the tunnel, set `REQUIRE_HTTPS=false` — the tunnel is the only ingress and is already HTTPS at the edge.)
 
-## 6. nginx reverse proxy + TLS for `api.quantumdataleap.ai`
+## 6. Expose it with a Cloudflare Tunnel (no nginx, no inbound ports)
 
-Add the WebSocket upgrade map once, in the `http {}` context — e.g. `/etc/nginx/conf.d/upgrade.conf`:
-```nginx
-map $http_upgrade $connection_upgrade { default upgrade; '' close; }
-```
-Create `/etc/nginx/sites-available/api.quantumdataleap.ai`:
-```nginx
-server {
-    listen 80;
-    server_name api.quantumdataleap.ai;
-    location / { return 301 https://$host$request_uri; }
-}
-server {
-    listen 443 ssl http2;
-    server_name api.quantumdataleap.ai;
-
-    ssl_certificate     /etc/letsencrypt/live/api.quantumdataleap.ai/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.quantumdataleap.ai/privkey.pem;
-
-    client_max_body_size 16m;   # screenshot uploads
-
-    location / {
-        proxy_pass http://127.0.0.1:8090;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade    $http_upgrade;      # WebSocket (/ws/events, /ws/live-view)
-        proxy_set_header Connection $connection_upgrade;
-        proxy_read_timeout 3600s;
-    }
-}
-```
+Install cloudflared on the server:
 ```bash
-sudo ln -s /etc/nginx/sites-available/api.quantumdataleap.ai /etc/nginx/sites-enabled/
-# TLS cert (public server with DNS already pointing here):
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d api.quantumdataleap.ai
-sudo nginx -t && sudo systemctl reload nginx
+sudo mkdir -p /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt update && sudo apt install -y cloudflared
 ```
 
-## 7. DNS (Cloudflare)
+Create and route the tunnel (opens a browser login to your Cloudflare account):
+```bash
+cloudflared tunnel login
+cloudflared tunnel create employee-monitor
+cloudflared tunnel route dns employee-monitor api.quantumdataleap.ai   # creates the DNS record automatically
+```
 
-Add an **A record**: `api` → your server's public IP. Two ways to serve TLS:
-- **Public VPS:** point DNS at the IP; certbot (above) issues a Let's Encrypt cert. (If Cloudflare proxy/orange-cloud
-  is on, use a Cloudflare **Origin Certificate** on nginx instead of certbot, and set SSL mode to Full (strict).)
-- **Home server / no public IP:** use a **Cloudflare Tunnel** — no open ports, no port-forwarding:
-  ```bash
-  # install cloudflared, then:
-  cloudflared tunnel login
-  cloudflared tunnel create employee-monitor
-  # route api.quantumdataleap.ai -> http://localhost:8090 in the tunnel config, then run it as a service:
-  sudo cloudflared service install
-  ```
+Write `/etc/cloudflared/config.yml` (use the tunnel UUID + credentials path that `create` printed):
+```yaml
+tunnel: <TUNNEL-UUID>
+credentials-file: /root/.cloudflared/<TUNNEL-UUID>.json
+ingress:
+  - hostname: api.quantumdataleap.ai
+    service: http://localhost:8090
+  - service: http_status:404
+```
+Run it as a service:
+```bash
+sudo cloudflared service install
+sudo systemctl enable --now cloudflared
+```
+WebSockets (`/ws/events`, `/ws/live-view`) pass through automatically — no extra config. Cloudflare terminates TLS at
+the edge and sends `X-Forwarded-Proto: https`, which the backend trusts (step 5). In the Cloudflare dashboard set the
+SSL/TLS mode to **Full**, and raise the upload size limit if screenshots exceed the plan default.
 
-## 8. Firewall
+## 7. Firewall
 
+With a tunnel there is **nothing to open inbound** — cloudflared dials out. Lock everything down except SSH:
 ```bash
 sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'     # 80 + 443
-sudo ufw enable
+sudo ufw --force enable
 ```
-Do **not** open 5432 / 6379 / 8090 — they stay internal.
+5432 / 6379 / 8090 stay bound to localhost and are never reachable from outside.
 
-## 9. Point the Windows apps at the server
+## 8. Point the Windows apps at the server
 
 Install the EXEs on their machines and enter the backend URL **`https://api.quantumdataleap.ai`**:
 - `EmployeeMonitorSetup.exe` on each employee PC (enrollment token + that URL).
