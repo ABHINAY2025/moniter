@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="EmployeeMonitor.Admin.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    RequestedTheme="Light"
+    xmlns:conv="using:EmployeeMonitor.Admin.Infrastructure">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Light "sky" re-skin: recolour the built-in tokens so every existing surface becomes
+                 translucent glass over the gradient, and recolour the accent to the gauge blue. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="SystemAccentColor">#3E6FF0</Color>
+                    <Color x:Key="SystemAccentColorDark1">#355FD4</Color>
+                    <Color x:Key="SystemAccentColorDark2">#2C50B8</Color>
+                    <Color x:Key="SystemAccentColorDark3">#24429C</Color>
+
+                    <!-- Cards / layers become frosted white -->
+                    <Color x:Key="CardBackgroundFillColorDefault">#C2FFFFFF</Color>
+                    <Color x:Key="CardBackgroundFillColorSecondary">#99FFFFFF</Color>
+                    <Color x:Key="CardStrokeColorDefault">#D6FFFFFF</Color>
+                    <Color x:Key="CardStrokeColorDefaultSolid">#D6FFFFFF</Color>
+                    <Color x:Key="LayerFillColorDefault">#8FFFFFFF</Color>
+                    <Color x:Key="LayerFillColorAlt">#C2FFFFFF</Color>
+                    <Color x:Key="SolidBackgroundFillColorBase">#EAF0FB</Color>
+
+                    <!-- Ink -->
+                    <Color x:Key="TextFillColorPrimary">#1E2A3A</Color>
+                    <Color x:Key="TextFillColorSecondary">#5A6476</Color>
+                    <Color x:Key="TextFillColorTertiary">#7A8599</Color>
+
+                    <!-- Softer corners everywhere -->
+                    <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
+                    <CornerRadius x:Key="OverlayCornerRadius">12</CornerRadius>
+
+                    <!-- Frosted navigation pane -->
+                    <AcrylicBrush x:Key="NavigationViewDefaultPaneBackground"
+                                  TintColor="#FFFFFF" TintOpacity="0.5" TintLuminosityOpacity="0.9"
+                                  FallbackColor="#ECF2FC" />
+                    <AcrylicBrush x:Key="NavigationViewExpandedPaneBackground"
+                                  TintColor="#FFFFFF" TintOpacity="0.5" TintLuminosityOpacity="0.9"
+                                  FallbackColor="#ECF2FC" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <conv:StatusToBrushConverter x:Key="StatusToBrush" />
+            <conv:StatusToPillBrushConverter x:Key="StatusToPill" />
+            <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <conv:StringToVisibilityConverter x:Key="StringToVisibility" />
+            <conv:SecondsToDurationConverter x:Key="SecondsToDuration" />
+            <conv:CountToVisitsConverter x:Key="CountToVisits" />
+            <conv:MuteGlyphConverter x:Key="MuteGlyph" />
+            <conv:WebResultToBrushConverter x:Key="WebResultToBrush" />
+
+            <!-- The sky: soft blue -> periwinkle -> blush, matching the cloud reference. -->
+            <LinearGradientBrush x:Key="SkyGradientBrush" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#AEC9F0" Offset="0.0" />
+                <GradientStop Color="#C7C6EE" Offset="0.55" />
+                <GradientStop Color="#ECD3E2" Offset="1.0" />
+            </LinearGradientBrush>
+
+            <!-- Frosted glass for cards and panels: translucent so the sky shows through, blurred and lightly
+                 tinted white. Falls back to a semi-transparent white if composition is off. -->
+            <AcrylicBrush x:Key="GlassCardBrush" TintColor="#FFFFFF" TintOpacity="0.1"
+                          TintLuminosityOpacity="0.4" FallbackColor="#8CFFFFFF" />
+            <AcrylicBrush x:Key="GlassPaneBrush" TintColor="#FFFFFF" TintOpacity="0.15"
+                          TintLuminosityOpacity="0.5" FallbackColor="#A6FFFFFF" />
+            <SolidColorBrush x:Key="GlassStrokeBrush" Color="#D6FFFFFF" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#3E6FF0" />
+
+            <!-- A frosted panel (table containers, detail sections). The hovering shadow is applied per-element
+                 (Translation + <Border.Shadow>) because WinUI does not allow those in a Style setter. -->
+            <Style x:Key="GlassPanel" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource GlassCardBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource GlassStrokeBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="14" />
+            </Style>
+
+            <!-- A single KPI / stat tile. -->
+            <Style x:Key="KpiCard" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource GlassCardBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource GlassStrokeBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="14" />
+                <Setter Property="Padding" Value="20,16" />
+                <Setter Property="MinWidth" Value="156" />
+            </Style>
+
+            <Style x:Key="KpiLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
+
+            <Style x:Key="KpiValue" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="32" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Margin" Value="0,6,0,0" />
+            </Style>
+
+            <Style x:Key="ColHeader" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
+
+            <!-- Page title. -->
+            <Style x:Key="PageTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="28" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+            </Style>
+
+            <!-- A soft status capsule: tinted fill + coloured dot + label. Apply to a Border. -->
+            <Style x:Key="StatusPill" TargetType="Border">
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="Padding" Value="10,3" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

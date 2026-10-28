@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="EmployeeMonitor.Admin.Pages.EmployeeDetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:EmployeeMonitor.Admin.Core.ViewModels"
+    xmlns:api="using:EmployeeMonitor.Admin.Core.Api">
+
+    <ScrollViewer Padding="24">
+        <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button Content="&#xE72B;" FontFamily="Segoe MDL2 Assets" Click="OnBack" ToolTipService.ToolTip="Back" />
+                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource PageTitle}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <InfoBar IsOpen="True" Severity="Error" IsClosable="False"
+                     Message="{x:Bind ViewModel.Error, Mode=OneWay}"
+                     Visibility="{x:Bind ViewModel.Error, Mode=OneWay, Converter={StaticResource StringToVisibility}}" />
+
+            <!-- Devices with live app / network / zscaler -->
+            <TextBlock Text="Devices" Style="{ThemeResource SubtitleTextBlockStyle}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Devices}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DeviceRowViewModel">
+                        <Border Background="{StaticResource GlassCardBrush}"
+                                BorderBrush="{StaticResource GlassStrokeBrush}" BorderThickness="1"
+                                CornerRadius="12" Padding="16" Margin="0,0,0,8" Translation="0,0,28">
+                            <Border.Shadow>
+                                <ThemeShadow />
+                            </Border.Shadow>
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="1.2*" />
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="1.5*" />
+                                    <ColumnDefinition Width="1.3*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="{x:Bind Hostname}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{x:Bind DeviceCode}" FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Ellipse Width="10" Height="10"
+                                             Fill="{x:Bind Status, Mode=OneWay, Converter={StaticResource StatusToBrush}}" />
+                                    <TextBlock Text="{x:Bind Status, Mode=OneWay}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                                           Text="{x:Bind CurrentApplication, Mode=OneWay}" />
+                                <TextBlock Grid.Column="3" VerticalAlignment="Center"
+                                           Text="{x:Bind Network, Mode=OneWay}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Grid.Column="4" VerticalAlignment="Center"
+                                           Text="{x:Bind ZscalerStatus, Mode=OneWay}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <Button Grid.Column="5" Content="Live view" VerticalAlignment="Center"
+                                        Tag="{x:Bind DeviceId}" Click="OnLiveView" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Applications -->
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <TextBlock Text="Application usage (today)" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Applications}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="api:UsageSlice">
+                                <Grid Padding="0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{x:Bind Label}" />
+                                    <TextBlock Grid.Column="1" FontWeight="SemiBold"
+                                               Text="{x:Bind TotalSeconds, Converter={StaticResource SecondsToDuration}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Websites -->
+                <StackPanel Grid.Column="1" Spacing="8">
+                    <TextBlock Text="Website domains (today)" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.Websites}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="api:UsageSlice">
+                                <Grid Padding="0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{x:Bind Label}" />
+                                    <TextBlock Grid.Column="1" FontWeight="SemiBold"
+                                               Text="{x:Bind Sessions, Converter={StaticResource CountToVisits}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Domain-level only (resolved domain names from the device) - no full URLs or page contents."
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+
+            <!-- USB -->
+            <TextBlock Text="USB events (today)" Style="{ThemeResource SubtitleTextBlockStyle}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.UsbEvents}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="api:UsbEventDto">
+                        <Grid Padding="0,6" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="1.2*" />
+                                <ColumnDefinition Width="2*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{x:Bind OccurredAt}" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind EventType}" />
+                            <TextBlock Grid.Column="2" Text="{x:Bind Description}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Network -->
+            <TextBlock Text="Network events (today)" Style="{ThemeResource SubtitleTextBlockStyle}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.NetworkEvents}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="api:NetworkEventDto">
+                        <Grid Padding="0,6" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="1.2*" />
+                                <ColumnDefinition Width="1*" />
+                                <ColumnDefinition Width="1.5*" />
+                                <ColumnDefinition Width="1*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{x:Bind OccurredAt}" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind EventType}" />
+                            <TextBlock Grid.Column="2" Text="{x:Bind ConnectionType}" />
+                            <TextBlock Grid.Column="3" Text="{x:Bind NetworkName}" />
+                            <TextBlock Grid.Column="4" Text="{x:Bind IpAddress}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Zscaler -->
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="Zscaler:" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                <TextBlock Text="{x:Bind ViewModel.ZscalerCurrent, Mode=OneWay}"
+                           Style="{ThemeResource SubtitleTextBlockStyle}" />
+            </StackPanel>
+            <ItemsControl ItemsSource="{x:Bind ViewModel.ZscalerHistory}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="api:ZscalerEventDto">
+                        <Grid Padding="0,4" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{x:Bind OccurredAt}" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind Status}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Screenshots -->
+            <TextBlock Text="Screenshots (today)" Style="{ThemeResource SubtitleTextBlockStyle}" />
+            <TextBlock Text="Click a capture to open it in the secure viewer. Every view is logged."
+                       FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <GridView ItemsSource="{x:Bind ViewModel.Screenshots}" IsItemClickEnabled="True"
+                      ItemClick="OnScreenshotClick" SelectionMode="None">
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="api:ScreenshotMetadataDto">
+                        <Border Width="150" Height="90" Margin="4" CornerRadius="6"
+                                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
+                                <FontIcon Glyph="&#xEB9F;" FontSize="22" />
+                                <TextBlock Text="{x:Bind CapturedAt}" FontSize="12" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+
+            <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Width="28" Height="28"
+                          HorizontalAlignment="Left" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

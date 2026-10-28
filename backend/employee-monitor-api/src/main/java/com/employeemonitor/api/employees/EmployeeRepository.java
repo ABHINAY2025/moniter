@@ -1,0 +1,11 @@
+package com.employeemonitor.api.employees;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
+
+    boolean existsByEmployeeCodeIgnoreCase(String employeeCode);
+
+    boolean existsByEmailIgnoreCase(String email);
+}

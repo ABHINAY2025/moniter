@@ -1,0 +1,24 @@
+COMPANY MONITORING NOTICE
+
+This software is installed on a company-owned device and performs transparent monitoring in accordance with company
+policy. A system-tray indicator shows when monitoring is active and lists exactly what is monitored.
+
+What may be monitored (each category is controlled by company policy and can be turned off):
+  - Work session: sign-in / sign-out, active / idle, lock / unlock
+  - Foreground application usage
+  - Website domains visited (domain names only)
+  - USB device connect / disconnect events
+  - Network connection status
+  - Zscaler connection status
+  - Periodic screenshots
+  - Authorized, logged, time-limited live screen view by an administrator
+
+What is NEVER captured:
+  - Keystrokes or anything you type
+  - Passwords, credentials, cookies or authentication tokens
+  - The contents of private messages, documents or web pages
+  - Webcam or microphone
+  - The contents of files on USB devices
+
+Monitoring is not hidden and can be uninstalled by IT administrators. If you have questions, contact your IT
+department.

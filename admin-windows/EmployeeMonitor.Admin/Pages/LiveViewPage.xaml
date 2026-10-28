@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="EmployeeMonitor.Admin.Pages.LiveViewPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="28,24" RowSpacing="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="&#xE72B;" FontFamily="Segoe MDL2 Assets" Click="OnBack"
+                    ToolTipService.ToolTip="Back" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="Live View" Style="{StaticResource PageTitle}" />
+                <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                    <Run Text="{x:Bind ViewModel.EmployeeName, Mode=OneWay}" />
+                    <Run Text=" — " />
+                    <Run Text="{x:Bind ViewModel.DeviceCode, Mode=OneWay}" />
+                </TextBlock>
+            </StackPanel>
+            <Border Grid.Column="2" VerticalAlignment="Center" Padding="10,4" CornerRadius="4" Background="#D13438"
+                    Visibility="{x:Bind ViewModel.IsLive, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Ellipse Width="10" Height="10" Fill="White" VerticalAlignment="Center" />
+                    <TextBlock Text="LIVE" Foreground="White" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="3" VerticalAlignment="Center" Padding="10,4" CornerRadius="4" Background="#1F9D57"
+                    Visibility="{x:Bind ViewModel.IsControlling, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE962;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="White" VerticalAlignment="Center" />
+                    <TextBlock Text="CONTROLLING" Foreground="White" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+            <Grid Grid.Column="4" VerticalAlignment="Center">
+                <Button Content="Take control" Command="{x:Bind ViewModel.RequestControlCommand}"
+                        ToolTipService.ToolTip="Ask the employee to let you control this PC"
+                        Visibility="{x:Bind ViewModel.IsControlling, Mode=OneWay, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                <Button Content="Release control" Command="{x:Bind ViewModel.ReleaseControlCommand}"
+                        Visibility="{x:Bind ViewModel.IsControlling, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
+            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button Command="{x:Bind ViewModel.ToggleMuteCommand}" VerticalAlignment="Center"
+                        ToolTipService.ToolTip="Mute / unmute the sound you hear">
+                    <FontIcon FontFamily="Segoe MDL2 Assets"
+                              Glyph="{x:Bind ViewModel.Muted, Mode=OneWay, Converter={StaticResource MuteGlyph}}" />
+                </Button>
+                <Slider Width="96" Minimum="0" Maximum="100" VerticalAlignment="Center"
+                        Value="{x:Bind ViewModel.Volume, Mode=TwoWay}"
+                        ToolTipService.ToolTip="Your listening volume (does not change the employee's volume)" />
+            </StackPanel>
+            <Button Grid.Column="6" Content="Stop live view" Command="{x:Bind ViewModel.StopCommand}"
+                    Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Center" />
+        </Grid>
+
+        <InfoBar Grid.Row="1" IsOpen="True" Severity="Error" IsClosable="False"
+                 Message="{x:Bind ViewModel.Error, Mode=OneWay}"
+                 Visibility="{x:Bind ViewModel.Error, Mode=OneWay, Converter={StaticResource StringToVisibility}}" />
+
+        <Border Grid.Row="2" Background="#0E1420" CornerRadius="14" MinHeight="300"
+                BorderBrush="{StaticResource GlassStrokeBrush}" BorderThickness="1" Padding="6">
+            <Image x:Name="ScreenImage" Stretch="Uniform"
+                   PointerMoved="OnPointerMoved" PointerPressed="OnPointerPressed"
+                   PointerReleased="OnPointerReleased" PointerWheelChanged="OnPointerWheel" />
+        </Border>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="16">
+            <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                <Run Text="Status:" />
+                <Run Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                <Run Text="Frames:" />
+                <Run Text="{x:Bind ViewModel.FrameCount, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock FontWeight="SemiBold"
+                       Visibility="{x:Bind ViewModel.IsControlling, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                <Run Text="Keys sent:" />
+                <Run Text="{x:Bind ViewModel.KeysSent, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="The employee's device shows a 'Live screen: Active' indicator while viewing. This session is time-limited and logged." />
+        </StackPanel>
+    </Grid>
+</Page>

@@ -1,0 +1,30 @@
+# ---- Secrets (never commit) ----
+.env
+*.env
+!*.env.example
+*.pfx
+*.pem
+*.key
+deployment/server.env
+
+# ---- Java / Maven ----
+target/
+*.class
+*.log
+
+# ---- .NET build output ----
+bin/
+obj/
+*.user
+.vs/
+
+# ---- Published / installer artifacts (built from source, not versioned) ----
+publish/
+publish*/
+Output/
+keys/
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/

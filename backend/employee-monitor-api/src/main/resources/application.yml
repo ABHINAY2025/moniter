@@ -1,0 +1,93 @@
+spring:
+  application:
+    name: employee-monitor-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/employee_monitor}
+    username: ${DB_USERNAME:employee_monitor}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  # Set to "framework" only when running behind a trusted reverse proxy (nginx) that sets X-Forwarded-*.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  security:
+    # REQUIRED. At least 32 bytes. Generate with: openssl rand -base64 48
+    jwt-secret: ${JWT_SECRET:}
+    jwt-issuer: ${JWT_ISSUER:employee-monitor}
+    access-token-ttl: ${ACCESS_TOKEN_TTL:PT15M}
+    refresh-token-ttl: ${REFRESH_TOKEN_TTL:P7D}
+    max-failed-logins: ${MAX_FAILED_LOGINS:5}
+    lockout-duration: ${LOCKOUT_DURATION:PT15M}
+    login-rate-limit-per-minute: ${LOGIN_RATE_LIMIT_PER_MINUTE:10}
+    register-rate-limit-per-minute: ${REGISTER_RATE_LIMIT_PER_MINUTE:20}
+    # Comma-separated origins allowed for browser clients (the WinUI app is not a browser and is unaffected).
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+    # When true, HTTP requests that did not arrive over TLS (directly or via a trusted proxy) are rejected.
+    require-https: ${REQUIRE_HTTPS:false}
+  bootstrap:
+    # Used only when the users table is empty, to create the first SUPER_ADMIN.
+    admin-username: ${BOOTSTRAP_ADMIN_USERNAME:}
+    admin-email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+  presence:
+    # A device with no heartbeat for this long is considered offline.
+    offline-timeout: ${PRESENCE_OFFLINE_TIMEOUT:PT90S}
+    sweep-interval-ms: ${PRESENCE_SWEEP_INTERVAL_MS:15000}
+  devices:
+    token-ttl: ${DEVICE_TOKEN_TTL:P365D}
+  screenshots:
+    # Object storage for screenshot bytes. Encrypted at rest when a key is set (base64, 32 bytes).
+    directory: ${SCREENSHOT_DIR:./data/screenshots}
+    encryption-key: ${SCREENSHOT_ENCRYPTION_KEY:}
+    max-bytes: ${SCREENSHOT_MAX_BYTES:8388608}
+  updates:
+    # Storage for signed agent packages. Integrity/authenticity come from the SHA-256 + RSA signature.
+    directory: ${UPDATE_DIR:./data/updates}
+    max-bytes: ${UPDATE_MAX_BYTES:209715200}
