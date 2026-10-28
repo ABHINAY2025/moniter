@@ -247,6 +247,36 @@ public class EmployeesViewModelTests
         vm.Page.Should().Be(0);
         vm.Employees.Should().ContainSingle(e => e.FullName == "Rahul Kumar");
     }
+
+    [Fact]
+    public async Task CreateEmployeeReturnsCreatedAndClearsError()
+    {
+        var api = new FakeAdminApi();
+        var vm = new EmployeesViewModel(api);
+
+        var created = await vm.CreateEmployeeAsync(new CreateEmployeeInput("SUJAY", "Sujay", "sujay@x.com"));
+
+        created.Should().NotBeNull();
+        created!.EmployeeCode.Should().Be("SUJAY");
+        api.CreateEmployeeCalls.Should().Be(1);
+        vm.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateEmployeeSurfacesApiErrorAndReturnsNull()
+    {
+        var api = new FakeAdminApi
+        {
+            CreateEmployeeHandler = _ => throw new ApiException("Employee code already in use",
+                System.Net.HttpStatusCode.Conflict, "CONFLICT"),
+        };
+        var vm = new EmployeesViewModel(api);
+
+        var created = await vm.CreateEmployeeAsync(new CreateEmployeeInput("DUP", "Dup", "d@x.com"));
+
+        created.Should().BeNull();
+        vm.Error.Should().Be("Employee code already in use");
+    }
 }
 
 public class WebAccessViewModelTests

@@ -21,6 +21,10 @@ public sealed record EmployeeDto(
     long Id, string EmployeeCode, string FullName, string? Email,
     DepartmentDto? Department, string? JobTitle, string Status);
 
+/// <summary>Fields for creating an employee. EmployeeCode/FullName/Email are required by the backend.</summary>
+public sealed record CreateEmployeeInput(string EmployeeCode, string FullName, string Email,
+    long? DepartmentId = null, string? JobTitle = null);
+
 public sealed record EmployeeSummaryDto(long Id, string EmployeeCode, string FullName, string? Department);
 
 public sealed record PresenceDto(string Status, bool Online, DateTimeOffset? LastHeartbeatAt,

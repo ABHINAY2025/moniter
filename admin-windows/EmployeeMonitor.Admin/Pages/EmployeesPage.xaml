@@ -17,14 +17,21 @@
         <Grid Grid.Row="0" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Employees" Style="{StaticResource PageTitle}" VerticalAlignment="Center" />
-            <TextBox Grid.Column="1" PlaceholderText="Search name, code or email"
+            <Button Grid.Column="1" Click="OnAddEmployee" Style="{ThemeResource AccentButtonStyle}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE710;" FontSize="14" />
+                    <TextBlock Text="Add employee" />
+                </StackPanel>
+            </Button>
+            <TextBox Grid.Column="2" PlaceholderText="Search name, code or email"
                      Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      KeyDown="OnSearchKeyDown" MaxWidth="360" HorizontalAlignment="Right" />
-            <Button Grid.Column="2" Content="Search" Command="{x:Bind ViewModel.SearchCommand}" />
+            <Button Grid.Column="3" Content="Search" Command="{x:Bind ViewModel.SearchCommand}" />
         </Grid>
 
         <InfoBar Grid.Row="1" IsOpen="True" Severity="Error" IsClosable="False"

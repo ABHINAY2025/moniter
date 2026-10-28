@@ -58,6 +58,21 @@ public partial class EmployeesViewModel : ObservableObject
         return LoadAsync();
     }
 
+    /// <summary>Creates an employee. Returns the created employee, or null and sets <see cref="Error"/> on failure.</summary>
+    public async Task<EmployeeDto?> CreateEmployeeAsync(CreateEmployeeInput input)
+    {
+        Error = null;
+        try
+        {
+            return await _api.CreateEmployeeAsync(input);
+        }
+        catch (Exception ex)
+        {
+            Error = ex is ApiException ? ex.Message : "Could not create employee: " + ex.Message;
+            return null;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanNext))]
     private Task NextPageAsync()
     {

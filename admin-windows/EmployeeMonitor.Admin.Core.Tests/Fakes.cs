@@ -41,6 +41,19 @@ internal sealed class FakeAdminApi : IAdminApi
         return Task.FromResult(new PageResponse<EmployeeDto>(pageItems, page, size, filtered.Count, totalPages));
     }
 
+    public int CreateEmployeeCalls { get; private set; }
+    public Func<CreateEmployeeInput, EmployeeDto>? CreateEmployeeHandler { get; set; }
+
+    public Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeInput input, CancellationToken ct = default)
+    {
+        CreateEmployeeCalls++;
+        var created = CreateEmployeeHandler?.Invoke(input)
+            ?? new EmployeeDto(Employees.Count + 1, input.EmployeeCode, input.FullName, input.Email,
+                null, input.JobTitle, "ACTIVE");
+        Employees.Add(created);
+        return Task.FromResult(created);
+    }
+
     public Task<PageResponse<DeviceDto>> GetDevicesAsync(string? query, int page, int size, CancellationToken ct = default)
     {
         var pageItems = Devices.Skip(page * size).Take(size).ToList();

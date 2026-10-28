@@ -71,6 +71,17 @@ public sealed class AdminApiClient : IAdminApi
     public Task<EmployeeDetailDto> GetEmployeeAsync(long id, CancellationToken ct = default) =>
         GetAsync<EmployeeDetailDto>($"/api/employees/{id}", ct);
 
+    public Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeInput input, CancellationToken ct = default) =>
+        PostAsync<EmployeeDto>("/api/employees",
+            new
+            {
+                employeeCode = input.EmployeeCode,
+                fullName = input.FullName,
+                email = input.Email,
+                departmentId = input.DepartmentId,
+                jobTitle = input.JobTitle,
+            }, authenticated: true, ct);
+
     public Task<UsageReport> GetApplicationsAsync(long employeeId, DateOnly date, string tz, CancellationToken ct = default) =>
         GetAsync<UsageReport>($"/api/employees/{employeeId}/applications?date={date:yyyy-MM-dd}&tz={Uri.EscapeDataString(tz)}", ct);
 

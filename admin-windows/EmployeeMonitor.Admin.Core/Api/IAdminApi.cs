@@ -7,6 +7,7 @@ public interface IAdminApi
     Task LogoutAsync(CancellationToken ct = default);
     Task<DashboardSummary> GetDashboardSummaryAsync(CancellationToken ct = default);
     Task<PageResponse<EmployeeDto>> GetEmployeesAsync(string? query, int page, int size, CancellationToken ct = default);
+    Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeInput input, CancellationToken ct = default);
     Task<PageResponse<DeviceDto>> GetDevicesAsync(string? query, int page, int size, CancellationToken ct = default);
     Task<DeviceDto> GetDeviceAsync(long id, CancellationToken ct = default);
 
