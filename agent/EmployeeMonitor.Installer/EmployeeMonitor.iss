@@ -43,7 +43,10 @@ begin
     'Enter the enrollment token issued by your IT administrator and the server URL.');
   ConfigPage.Add('Enrollment token:', False);
   ConfigPage.Add('Backend URL (https://...):', False);
-  ConfigPage.Values[1] := 'https://api.quantumdataleap.ai';
+  // Prefill from command line so unattended installs work:
+  //   EmployeeMonitorSetup.exe /VERYSILENT /SUPPRESSMSGBOXES /TOKEN=enr_xxx [/URL=https://host]
+  ConfigPage.Values[0] := ExpandConstant('{param:TOKEN|}');
+  ConfigPage.Values[1] := ExpandConstant('{param:URL|https://api.quantumdataleap.ai}');
 end;
 
 function GetToken(Param: string): string;
@@ -59,7 +62,8 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
-  if (CurPageID = ConfigPage.ID) and (Trim(ConfigPage.Values[0]) = '') then
+  // Only enforce the token in the interactive wizard; unattended installs supply it via /TOKEN=.
+  if (CurPageID = ConfigPage.ID) and (Trim(ConfigPage.Values[0]) = '') and (not WizardSilent) then
   begin
     MsgBox('An enrollment token is required.', mbError, MB_OK);
     Result := False;
