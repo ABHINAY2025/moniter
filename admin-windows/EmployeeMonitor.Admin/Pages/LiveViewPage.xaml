@@ -92,6 +92,13 @@
                 <Run Text="Keys sent:" />
                 <Run Text="{x:Bind ViewModel.KeysSent, Mode=OneWay}" />
             </TextBlock>
+            <CheckBox Content="Unattended control (no consent) for this device" VerticalAlignment="Center"
+                      IsChecked="{x:Bind ViewModel.UnattendedControl, Mode=TwoWay}"
+                      IsEnabled="{x:Bind ViewModel.ControlPolicyLoaded, Mode=OneWay}"
+                      ToolTipService.ToolTip="When on, you can take control of this device without asking the employee. A visible 'your screen is being controlled' banner is always shown to them either way. Applies within about 30 seconds." />
+            <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" VerticalAlignment="Center"
+                       Text="{x:Bind ViewModel.ControlPolicyStatus, Mode=OneWay}"
+                       Visibility="{x:Bind ViewModel.ControlPolicyStatus, Mode=OneWay, Converter={StaticResource StringToVisibility}}" />
             <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        Text="The employee's device shows a 'Live screen: Active' indicator while viewing. This session is time-limited and logged." />
         </StackPanel>

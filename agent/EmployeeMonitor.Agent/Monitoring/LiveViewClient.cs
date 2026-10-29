@@ -20,6 +20,7 @@ public sealed class LiveViewClient
     private readonly ILogger _logger;
     private readonly Func<bool> _liveViewAllowed;
     private readonly Func<bool> _isLocked;
+    private readonly Func<bool> _requireControlConsent;
     private readonly int _frameIntervalMs;
     private readonly Func<ClientWebSocket>? _socketFactory;
     private readonly Monitoring.ISystemAudioCapture? _audio;
@@ -44,13 +45,16 @@ public sealed class LiveViewClient
     public LiveViewClient(string baseUrl, Monitoring.IScreenCaptureProvider capture, ILogger logger,
         Func<bool> liveViewAllowed, Func<bool> isLocked, int fps = 8, Func<ClientWebSocket>? socketFactory = null,
         Monitoring.ISystemAudioCapture? audio = null, Monitoring.IRemoteInputInjector? input = null,
-        Monitoring.ISystemClipboard? clipboard = null, int frameMaxEdge = 1366, int frameQuality = 60)
+        Monitoring.ISystemClipboard? clipboard = null, int frameMaxEdge = 1366, int frameQuality = 60,
+        Func<bool>? requireControlConsent = null)
     {
         _wsUri = BuildWsUri(baseUrl);
         _capture = capture;
         _logger = logger;
         _liveViewAllowed = liveViewAllowed;
         _isLocked = isLocked;
+        // Default to requiring consent when not supplied; only an explicit policy opt-out enables unattended control.
+        _requireControlConsent = requireControlConsent ?? (() => true);
         // Floor of 80ms allows up to ~12fps; the send loop self-paces to the link, so smaller frames = higher fps.
         _frameIntervalMs = Math.Max(80, 1000 / Math.Max(1, fps));
         _socketFactory = socketFactory;
@@ -87,7 +91,7 @@ public sealed class LiveViewClient
                         _logger.LogInformation("Live view stopped (session {Session})", _activeSessionId);
                     }
                     _activeSessionId = null;
-                    _controlGranted = false;
+                    ReleaseControl();
                     return null;
                 default:
                     return null;
@@ -130,6 +134,45 @@ public sealed class LiveViewClient
         });
     }
 
+    /// <summary>Outcome of a control request. <see cref="NeedsConsent"/> means the employee must still be prompted.</summary>
+    public enum ControlDecision
+    {
+        /// <summary>No session, or control is already granted / a prompt is already pending.</summary>
+        Ignored,
+
+        /// <summary>Refused because live view is not permitted.</summary>
+        Denied,
+
+        /// <summary>Granted immediately (admin-configured unattended control); the on-screen banner is now showing.</summary>
+        Granted,
+
+        /// <summary>Allowed but the employee must consent first.</summary>
+        NeedsConsent,
+    }
+
+    /// <summary>
+    /// Decides how to answer a control request and applies the grant + banner side-effects for the immediate
+    /// outcomes. Exposed for testing. Unattended control (policy opt-out) grants here without a prompt but always
+    /// raises the visible banner; otherwise the caller prompts the employee and grants on acceptance.
+    /// </summary>
+    public ControlDecision EvaluateControlRequest(string adminName)
+    {
+        if (_activeSessionId is null || _controlGranted || _consentPending)
+        {
+            return ControlDecision.Ignored;
+        }
+        if (!_liveViewAllowed())
+        {
+            return ControlDecision.Denied;
+        }
+        if (!_requireControlConsent())
+        {
+            GrantControl(adminName);
+            return ControlDecision.Granted;
+        }
+        return ControlDecision.NeedsConsent;
+    }
+
     // ---------- Connection loop ----------
 
     public async Task RunAsync(CancellationToken ct)
@@ -160,7 +203,7 @@ public sealed class LiveViewClient
                 _logger.LogDebug("Live-view signaling dropped: {Message}", ex.Message);
             }
             _activeSessionId = null;
-            _controlGranted = false;
+            ReleaseControl();   // a dropped connection must also drop the on-screen control indicator
             await Delay(backoff, ct);
             backoff = TimeSpan.FromSeconds(Math.Min(30, backoff.TotalSeconds * 2));
         }
@@ -196,7 +239,8 @@ public sealed class LiveViewClient
         }
     }
 
-    // ---------- Remote control (admin-assisted input), gated by explicit user consent ----------
+    // ---------- Remote control (admin-assisted input). Gated by employee consent unless the device policy
+    //            opts into unattended control; either way a visible on-screen banner is shown throughout. ----------
 
     private void HandleRemoteMessage(ClientWebSocket socket, string json, CancellationToken ct)
     {
@@ -219,7 +263,7 @@ public sealed class LiveViewClient
                     {
                         _logger.LogInformation("Remote control released.");
                     }
-                    _controlGranted = false;
+                    ReleaseControl();
                     break;
                 case "INPUT":
                     if (_controlGranted && !_isLocked())
@@ -246,33 +290,79 @@ public sealed class LiveViewClient
     private void StartConsent(ClientWebSocket socket, JsonElement root, CancellationToken ct)
     {
         var session = _activeSessionId;
-        if (session is null || _controlGranted || _consentPending)
+        if (session is null)
         {
-            return;
-        }
-        if (!_liveViewAllowed())
-        {
-            _ = ReplyControl(socket, "CONTROL_DENIED", session, ct);
             return;
         }
         string admin = root.TryGetProperty("admin", out var a) ? a.GetString() ?? "An administrator" : "An administrator";
-        _consentPending = true;
-        _ = Task.Run(() =>
+
+        switch (EvaluateControlRequest(admin))
         {
-            bool allow = false;
+            case ControlDecision.Ignored:
+                return;
+            case ControlDecision.Denied:
+                _ = ReplyControl(socket, "CONTROL_DENIED", session, ct);
+                return;
+            case ControlDecision.Granted:
+                // Unattended control: already granted + banner shown by EvaluateControlRequest; just acknowledge.
+                _ = ReplyControl(socket, "CONTROL_GRANTED", session, ct);
+                _logger.LogInformation("Remote control granted without prompt (unattended policy) for session {Session}", session);
+                return;
+            case ControlDecision.NeedsConsent:
+                _consentPending = true;
+                _ = Task.Run(() =>
+                {
+                    bool allow = false;
+                    try
+                    {
+                        allow = _input!.RequestConsent(admin);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug("Consent prompt failed: {Message}", ex.Message);
+                    }
+                    if (allow)
+                    {
+                        GrantControl(admin);
+                    }
+                    _consentPending = false;
+                    _ = ReplyControl(socket, allow ? "CONTROL_GRANTED" : "CONTROL_DENIED", session, ct);
+                    _logger.LogInformation("Remote control {Result} (session {Session})", allow ? "granted" : "denied", session);
+                });
+                return;
+        }
+    }
+
+    /// <summary>Grants control and shows the always-on indicator. Used by both the consent and unattended paths.</summary>
+    private void GrantControl(string admin)
+    {
+        _controlGranted = true;
+        try
+        {
+            _input?.ShowControlBanner(admin);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug("Control banner failed to show: {Message}", ex.Message);
+        }
+    }
+
+    /// <summary>Revokes control and removes the indicator. Safe to call when control was never granted.</summary>
+    private void ReleaseControl()
+    {
+        bool was = _controlGranted;
+        _controlGranted = false;
+        if (was)
+        {
             try
             {
-                allow = _input!.RequestConsent(admin);
+                _input?.HideControlBanner();
             }
             catch (Exception ex)
             {
-                _logger.LogDebug("Consent prompt failed: {Message}", ex.Message);
+                _logger.LogDebug("Control banner failed to hide: {Message}", ex.Message);
             }
-            _controlGranted = allow;
-            _consentPending = false;
-            _ = ReplyControl(socket, allow ? "CONTROL_GRANTED" : "CONTROL_DENIED", session, ct);
-            _logger.LogInformation("Remote control {Result} (session {Session})", allow ? "granted" : "denied", session);
-        });
+        }
     }
 
     private async Task ReplyControl(ClientWebSocket socket, string type, string session, CancellationToken ct)

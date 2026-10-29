@@ -121,7 +121,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             Line(p.UsbMonitoring, "USB device events"),
             Line(p.NetworkMonitoring, "Network status"),
             Line(p.ZscalerMonitoring, "Zscaler status"),
-            Line(p.Screenshots, $"Periodic screenshots (every {p.ScreenshotIntervalSeconds / 60} min)"),
+            Line(p.Screenshots, "Screenshots (saved only when you take one, e.g. PrtSc or Win+Shift+S)"),
             "",
             liveActive
                 ? "Live screen:   ● ACTIVE — an authorized administrator is viewing this screen now"

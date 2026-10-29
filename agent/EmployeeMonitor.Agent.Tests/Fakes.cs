@@ -49,6 +49,58 @@ internal sealed class FakeScreenCaptureProvider : IScreenCaptureProvider
     public ScreenCapture? Capture(int maxLongEdge, int quality) => Capture();
 }
 
+internal sealed class FakeScreenshotEventSource : IScreenshotEventSource
+{
+    private Action? _onScreenshot;
+    public bool Started { get; private set; }
+    public bool Stopped { get; private set; }
+
+    public void Start(Action onScreenshot)
+    {
+        _onScreenshot = onScreenshot;
+        Started = true;
+    }
+
+    public void Stop() => Stopped = true;
+
+    /// <summary>Simulates the employee taking a screenshot.</summary>
+    public void Trigger() => _onScreenshot?.Invoke();
+}
+
+internal sealed class FakeRemoteInputInjector : IRemoteInputInjector
+{
+    public bool ConsentResult { get; set; } = true;
+    public int ConsentPrompts { get; private set; }
+    public int BannerShows { get; private set; }
+    public int BannerHides { get; private set; }
+    public bool BannerVisible { get; private set; }
+    public string? LastBannerAdmin { get; private set; }
+
+    public bool RequestConsent(string adminName)
+    {
+        ConsentPrompts++;
+        return ConsentResult;
+    }
+
+    public void ShowControlBanner(string adminName)
+    {
+        BannerShows++;
+        BannerVisible = true;
+        LastBannerAdmin = adminName;
+    }
+
+    public void HideControlBanner()
+    {
+        BannerHides++;
+        BannerVisible = false;
+    }
+
+    public void MoveMouse(double nx, double ny) { }
+    public void MouseButton(string button, bool down, double nx, double ny) { }
+    public void MouseWheel(int delta, double nx, double ny) { }
+    public void KeyEvent(int virtualKey, bool down) { }
+}
+
 internal sealed class InMemorySecureStore : ISecureStore
 {
     private string? _value;

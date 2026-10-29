@@ -84,7 +84,10 @@ public sealed record PolicySettingsDto(
     IReadOnlyList<string> WorkDays,
     string Timezone,
     int RetentionDays,
-    int ScreenshotRetentionDays);
+    int ScreenshotRetentionDays,
+    // When false, remote control of this device skips the employee consent prompt (admin-configured unattended
+    // control). A visible on-screen banner is always shown regardless. Defaults to true (consent required).
+    bool RequireControlConsent = true);
 
 public sealed record PolicyResponseDto(long PolicyId, string Name, string Source, string Revision,
     PolicySettingsDto Settings, DateTimeOffset UpdatedAt);

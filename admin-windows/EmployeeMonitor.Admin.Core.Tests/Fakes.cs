@@ -80,6 +80,22 @@ internal sealed class FakeAdminApi : IAdminApi
         return Task.FromResult(DefaultPolicy);
     }
 
+    public Dictionary<long, PolicyResponseDto> DevicePolicies { get; } = new();
+    public (long deviceId, PolicySettingsDto settings)? LastDevicePolicySaved { get; private set; }
+
+    public Task<PolicyResponseDto> GetDevicePolicyAsync(long deviceId, CancellationToken ct = default) =>
+        Task.FromResult(DevicePolicies.TryGetValue(deviceId, out var p) ? p : DefaultPolicy);
+
+    public Task<PolicyResponseDto> UpdateDevicePolicyAsync(long deviceId, PolicySettingsDto settings,
+        CancellationToken ct = default)
+    {
+        LastDevicePolicySaved = (deviceId, settings);
+        var dto = new PolicyResponseDto(100 + deviceId, "device:" + deviceId, "DEVICE_OVERRIDE", "100-1",
+            settings, DateTimeOffset.UnixEpoch);
+        DevicePolicies[deviceId] = dto;
+        return Task.FromResult(dto);
+    }
+
     // Milestone 4
     public UsageReport ApplicationsReport { get; set; } = new(1, "2026-10-06", "UTC", 0, new List<UsageSlice>());
     public UsageReport WebsitesReport { get; set; } = new(1, "2026-10-06", "UTC", 0, new List<UsageSlice>());

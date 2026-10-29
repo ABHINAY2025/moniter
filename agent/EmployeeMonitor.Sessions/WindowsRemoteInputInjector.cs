@@ -16,8 +16,33 @@ namespace EmployeeMonitor.Sessions;
 public sealed class WindowsRemoteInputInjector : IRemoteInputInjector
 {
     private readonly ILogger<WindowsRemoteInputInjector> _log;
+    private readonly ControlBanner _banner = new();
 
     public WindowsRemoteInputInjector(ILogger<WindowsRemoteInputInjector> log) => _log = log;
+
+    public void ShowControlBanner(string adminName)
+    {
+        try
+        {
+            _banner.Show(adminName);
+        }
+        catch (Exception ex)
+        {
+            _log.LogDebug("Control banner failed to show: {Err}", ex.Message);
+        }
+    }
+
+    public void HideControlBanner()
+    {
+        try
+        {
+            _banner.Hide();
+        }
+        catch (Exception ex)
+        {
+            _log.LogDebug("Control banner failed to hide: {Err}", ex.Message);
+        }
+    }
 
     public bool RequestConsent(string adminName)
     {

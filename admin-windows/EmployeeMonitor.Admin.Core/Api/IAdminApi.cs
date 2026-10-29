@@ -32,6 +32,10 @@ public interface IAdminApi
     Task<PolicyResponseDto> GetDefaultPolicyAsync(CancellationToken ct = default);
     Task<PolicyResponseDto> UpdateDefaultPolicyAsync(PolicySettingsDto settings, CancellationToken ct = default);
 
+    // Per-device effective policy + override (used to toggle unattended control for one device)
+    Task<PolicyResponseDto> GetDevicePolicyAsync(long deviceId, CancellationToken ct = default);
+    Task<PolicyResponseDto> UpdateDevicePolicyAsync(long deviceId, PolicySettingsDto settings, CancellationToken ct = default);
+
     Task<PageResponse<AlertDto>> GetAlertsAsync(bool unacknowledged, int page, int size, CancellationToken ct = default);
     Task<AlertDto> AcknowledgeAlertAsync(long alertId, CancellationToken ct = default);
 

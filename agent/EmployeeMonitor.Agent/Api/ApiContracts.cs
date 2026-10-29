@@ -62,4 +62,7 @@ public sealed record PolicySettings(
     IReadOnlyList<string> WorkDays,
     string Timezone,
     int RetentionDays,
-    int ScreenshotRetentionDays);
+    int ScreenshotRetentionDays,
+    // Nullable so an older backend that omits the field is treated as "consent required" (the safe default).
+    // Only an explicit false enables unattended control; see AgentRunner / LiveViewClient.
+    bool? RequireControlConsent = null);

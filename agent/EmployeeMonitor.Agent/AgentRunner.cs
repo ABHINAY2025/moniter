@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using EmployeeMonitor.Agent.Api;
 using EmployeeMonitor.Agent.Configuration;
 using EmployeeMonitor.Agent.Monitoring;
@@ -39,12 +40,14 @@ public sealed class AgentRunner
     private readonly ISystemClipboard? _clipboard;
     private readonly WebAccessManager? _webAccess;
     private readonly IWebEnforcement? _webEnforcement;
+    private readonly IScreenshotEventSource? _screenshotEvents;
 
     public AgentRunner(IBackendApi api, CredentialStore credentials, ISystemInfo systemInfo, IInputMonitor input,
         ISystemEventSource events, ISystemClock clock, MonitoringCollector monitoring,
         IScreenCaptureProvider screenCapture, IOptions<AgentOptions> options, ILogger<AgentRunner> logger,
         ISystemAudioCapture? audioCapture = null, IRemoteInputInjector? remoteInput = null,
-        ISystemClipboard? clipboard = null, WebAccessManager? webAccess = null, IWebEnforcement? webEnforcement = null)
+        ISystemClipboard? clipboard = null, WebAccessManager? webAccess = null, IWebEnforcement? webEnforcement = null,
+        IScreenshotEventSource? screenshotEvents = null)
     {
         _api = api;
         _credentials = credentials;
@@ -61,6 +64,7 @@ public sealed class AgentRunner
         _clipboard = clipboard;
         _webAccess = webAccess;
         _webEnforcement = webEnforcement;
+        _screenshotEvents = screenshotEvents;
         _agentVersion = typeof(AgentRunner).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
     }
 
@@ -93,7 +97,9 @@ public sealed class AgentRunner
         var liveView = new LiveViewClient(_options.BackendBaseUrl, _screenCapture, _logger,
             () => _policy?.LiveView ?? false,
             () => { lock (_gate) { return _tracker.Current == ActivityState.Locked; } },
-            audio: _audioCapture, input: _remoteInput, clipboard: _clipboard);
+            audio: _audioCapture, input: _remoteInput, clipboard: _clipboard,
+            // null/true => require consent; only an explicit policy opt-out enables unattended control.
+            requireControlConsent: () => _policy?.RequireControlConsent != false);
         liveView.Configure(_credential.DeviceToken);
 
         var updater = new AgentUpdater(_api, _agentVersion, _options.UpdatePublicKey,
@@ -292,31 +298,66 @@ public sealed class AgentRunner
         }
     }
 
-    private int ScreenshotIntervalSeconds =>
-        Math.Clamp(_policy?.ScreenshotIntervalSeconds ?? 900, 30, 3600);
+    // Screenshots are event-driven: one is stored only when the employee actually takes a screenshot, instead of
+    // on a fixed timer. A short minimum gap coalesces the near-simultaneous signals a single screenshot can raise
+    // (e.g. clipboard image + saved file) and rate-limits rapid repeats so the store can't be flooded.
+    private const int MinScreenshotGapMs = 1500;
+    private readonly Channel<byte> _screenshotRequests =
+        Channel.CreateBounded<byte>(new BoundedChannelOptions(8) { FullMode = BoundedChannelFullMode.DropOldest });
+
+    private void OnScreenshotTaken() => _screenshotRequests.Writer.TryWrite(0);
 
     private async Task CaptureLoop(CancellationToken ct)
     {
-        // Check eligibility in small steps and capture when the interval has elapsed, so a policy change that
-        // enables screenshots or opens the window takes effect promptly instead of after a full interval.
-        await DelaySeconds(Math.Min(_options.ScreenshotInitialDelaySeconds, 5), ct);
-        DateTimeOffset? last = null;
-        while (!ct.IsCancellationRequested)
+        if (_screenshotEvents is null)
         {
-            int interval = ScreenshotIntervalSeconds;
-            var now = _clock.UtcNow;
-            ActivityState status;
-            lock (_gate)
+            return;   // no screenshot detector available (non-Windows / tests) -> no screenshots are stored
+        }
+        try
+        {
+            _screenshotEvents.Start(OnScreenshotTaken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Screenshot detector failed to start: {Message}", ex.Message);
+            return;
+        }
+
+        DateTimeOffset? last = null;
+        try
+        {
+            while (await _screenshotRequests.Reader.WaitToReadAsync(ct))
             {
-                status = _tracker.Current;
+                while (_screenshotRequests.Reader.TryRead(out _))
+                {
+                    var now = _clock.UtcNow;
+                    if (last is not null && (now - last.Value).TotalMilliseconds < MinScreenshotGapMs)
+                    {
+                        continue;   // coalesce the double-signal / rate-limit repeats
+                    }
+                    ActivityState status;
+                    lock (_gate)
+                    {
+                        status = _tracker.Current;
+                    }
+                    bool eligible = ScreenshotGate.ShouldCapture(_policy,
+                        MonitoringSchedule.IsWithinWindow(_policy, now), status);
+                    if (!eligible)
+                    {
+                        continue;   // screenshots disabled by policy, outside the work window, or workstation locked
+                    }
+                    await CaptureOnceAsync(ct);
+                    last = now;
+                }
             }
-            bool eligible = ScreenshotGate.ShouldCapture(_policy, MonitoringSchedule.IsWithinWindow(_policy, now), status);
-            if (eligible && (last is null || (now - last.Value).TotalSeconds >= interval))
-            {
-                await CaptureOnceAsync(ct);
-                last = now;
-            }
-            await DelaySeconds(Math.Min(interval, 10), ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // normal shutdown
+        }
+        finally
+        {
+            try { _screenshotEvents.Stop(); } catch { /* best-effort */ }
         }
     }
 

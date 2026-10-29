@@ -5,13 +5,16 @@
     <RootNamespace>EmployeeMonitor.Sessions</RootNamespace>
     <!-- P/Invoke to officially supported Win32 user-session APIs (GetLastInputInfo, WTS session notifications). -->
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <!-- WinForms is used only for the always-on-top "being controlled" banner (see ControlBanner). It also
+         supplies System.Drawing from the Windows Desktop runtime, so the standalone System.Drawing.Common
+         package is no longer needed. -->
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Win32.SystemEvents" Version="8.0.0" />
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
-    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
     <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="System.Diagnostics.EventLog" Version="8.0.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />

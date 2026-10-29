@@ -40,9 +40,20 @@ public record PolicySettings(
         @NotEmpty Set<DayOfWeek> workDays,
         @NotBlank String timezone,
         @NotNull @Min(1) @Max(3650) Integer retentionDays,
-        @NotNull @Min(1) @Max(365) Integer screenshotRetentionDays) {
+        @NotNull @Min(1) @Max(365) Integer screenshotRetentionDays,
+        @NotNull Boolean requireControlConsent) {
 
     public static final Set<Integer> ALLOWED_SCREENSHOT_INTERVALS = Set.of(300, 600, 900, 1800);
+
+    /**
+     * Older stored/received policies predate {@code requireControlConsent}; treat a missing value as the safe
+     * default (consent required). Admins opt a device into unattended control by setting it to {@code false}.
+     */
+    public PolicySettings {
+        if (requireControlConsent == null) {
+            requireControlConsent = true;
+        }
+    }
 
     @AssertTrue(message = "screenshotIntervalSeconds must be one of 300, 600, 900, 1800")
     @JsonIgnore

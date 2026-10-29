@@ -208,6 +208,33 @@ public class LiveViewViewModelTests
         vm.IsLive.Should().BeFalse();
         vm.Error.Should().Contain("disabled by policy");
     }
+
+    [Fact]
+    public async Task LoadingControlPolicyReflectsConsentAndDoesNotSave()
+    {
+        var api = new FakeAdminApi();
+        var vm = new LiveViewViewModel(api, new FakeLiveViewSignaling(), new ImmediateDispatcher());
+
+        await vm.LoadControlPolicyAsync(1);
+
+        vm.ControlPolicyLoaded.Should().BeTrue();
+        vm.UnattendedControl.Should().BeFalse();        // default policy requires consent
+        api.LastDevicePolicySaved.Should().BeNull();    // merely loading must not write an override
+    }
+
+    [Fact]
+    public async Task EnablingUnattendedControlWritesDeviceOverride()
+    {
+        var api = new FakeAdminApi();
+        var vm = new LiveViewViewModel(api, new FakeLiveViewSignaling(), new ImmediateDispatcher());
+        await vm.LoadControlPolicyAsync(1);
+
+        vm.UnattendedControl = true;                    // admin opts this one device into unattended control
+
+        api.LastDevicePolicySaved.Should().NotBeNull();
+        api.LastDevicePolicySaved!.Value.deviceId.Should().Be(1);
+        api.LastDevicePolicySaved.Value.settings.RequireControlConsent.Should().BeFalse();
+    }
 }
 
 public class EmployeesViewModelTests
@@ -314,6 +341,22 @@ public class PolicyViewModelTests
         api.LastSavedPolicy!.LiveView.Should().BeTrue();
         api.LastSavedPolicy.ScreenshotIntervalSeconds.Should().Be(1800);
         vm.StatusMessage.Should().NotBeNull();
+        vm.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SavePersistsRequireControlConsentToggle()
+    {
+        var api = new FakeAdminApi();
+        var vm = new PolicyViewModel(api);
+        await vm.LoadAsync();
+        vm.RequireControlConsent.Should().BeTrue();   // safe default comes back from the server
+
+        vm.RequireControlConsent = false;             // admin opts the default policy into unattended control
+        await vm.SaveAsync();
+
+        api.LastSavedPolicy.Should().NotBeNull();
+        api.LastSavedPolicy!.RequireControlConsent.Should().BeFalse();
         vm.Error.Should().BeNull();
     }
 

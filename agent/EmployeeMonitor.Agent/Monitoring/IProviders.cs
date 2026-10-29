@@ -65,10 +65,34 @@ public interface IRemoteInputInjector
     /// <summary>Shows a prompt on the employee's desktop and blocks until they allow (true) or deny (false).</summary>
     bool RequestConsent(string adminName);
 
+    /// <summary>
+    /// Shows a persistent, always-on-top on-screen banner telling the employee their screen is being remotely
+    /// controlled. Shown for the whole duration control is held, whether or not consent was prompted — the
+    /// indicator is never suppressed, even for admin-configured unattended control.
+    /// </summary>
+    void ShowControlBanner(string adminName);
+
+    /// <summary>Removes the remote-control banner when control ends.</summary>
+    void HideControlBanner();
+
     void MoveMouse(double nx, double ny);
     void MouseButton(string button, bool down, double nx, double ny);
     void MouseWheel(int delta, double nx, double ny);
     void KeyEvent(int virtualKey, bool down);
+}
+
+/// <summary>
+/// Raises an event when the employee takes a screenshot — PrtSc / Snip to the clipboard, or Win+PrtSc saved to the
+/// Pictures\Screenshots folder. Lets the agent store a monitoring screenshot only in response to the employee's own
+/// action instead of on a fixed timer. Detection never reads keystrokes: it watches the clipboard's image-format
+/// availability (not its contents) and the Screenshots folder.
+/// </summary>
+public interface IScreenshotEventSource
+{
+    /// <summary>Starts watching. <paramref name="onScreenshot"/> is invoked (on a background thread) per detected screenshot.</summary>
+    void Start(Action onScreenshot);
+
+    void Stop();
 }
 
 /// <summary>

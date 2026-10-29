@@ -54,11 +54,11 @@
                 <Border Style="{StaticResource GlassPanel}" Padding="20">
                     <StackPanel Spacing="12">
                         <TextBlock Text="Screenshots" FontWeight="SemiBold" FontSize="15" />
-                        <ToggleSwitch Header="Capture periodic screenshots" OnContent="On" OffContent="Off"
+                        <ToggleSwitch Header="Save a screenshot when the employee takes one" OnContent="On" OffContent="Off"
                                       IsOn="{x:Bind ViewModel.Screenshots, Mode=TwoWay}" />
-                        <ComboBox Header="Interval (minutes)" MinWidth="160"
-                                  ItemsSource="{x:Bind ViewModel.ScreenshotIntervalMinutesOptions}"
-                                  SelectedItem="{x:Bind ViewModel.ScreenshotIntervalMinutes, Mode=TwoWay}" />
+                        <TextBlock TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="A screenshot is stored only when the employee takes one themselves (PrtSc, Alt+PrtSc, Win+Shift+S snip, or Win+PrtSc). The agent no longer captures on a fixed timer." />
                         <NumberBox Header="Keep screenshots for (days)" Minimum="1" Maximum="365" SmallChange="1"
                                    SpinButtonPlacementMode="Inline"
                                    Value="{x:Bind ViewModel.ScreenshotRetentionDays, Mode=TwoWay}" />
@@ -74,9 +74,11 @@
                         <NumberBox Header="Max session length (minutes)" Minimum="1" Maximum="240" SmallChange="5"
                                    SpinButtonPlacementMode="Inline"
                                    Value="{x:Bind ViewModel.LiveViewMaxMinutes, Mode=TwoWay}" />
+                        <ToggleSwitch Header="Require employee consent before taking control" OnContent="Consent required" OffContent="Unattended"
+                                      IsOn="{x:Bind ViewModel.RequireControlConsent, Mode=TwoWay}" />
                         <TextBlock TextWrapping="Wrap" FontSize="12"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   Text="Live view always shows the employee a 'Live screen: Active' indicator, and taking control requires on-screen consent." />
+                                   Text="Live view always shows the employee a 'Live screen: Active' indicator. When consent is required (default), taking control asks the employee on screen first. Turning it off here allows unattended control for every device — a prominent 'your screen is being controlled' banner is always shown either way. To allow it for only some employees, leave this on and set it per device from the Live view page." />
                     </StackPanel>
                 </Border>
 

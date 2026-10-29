@@ -38,6 +38,15 @@ public partial class LiveViewViewModel : ObservableObject
     [ObservableProperty] private bool _controlPending;
     [ObservableProperty] private int _keysSent;
 
+    // Per-device unattended-control setting (the inverse of the policy's requireControlConsent).
+    [ObservableProperty] private bool _unattendedControl;
+    [ObservableProperty] private bool _controlPolicyLoaded;
+    [ObservableProperty] private string? _controlPolicyStatus;
+
+    private long _controlDeviceId;
+    private PolicySettingsDto? _controlSettings;
+    private bool _suppressControlSave;
+
     public Guid? SessionId { get; private set; }
 
     /// <summary>Latest decoded JPEG frame. The view renders it; the VM stays UI-framework-agnostic.</summary>
@@ -128,6 +137,67 @@ public partial class LiveViewViewModel : ObservableObject
             return Task.CompletedTask;
         }
         return _signaling.SendAsync(JsonSerializer.Serialize(message));
+    }
+
+    // ---------- Per-device unattended control (admin opt-out of the consent prompt for this one device) ----------
+
+    /// <summary>
+    /// Loads the device's effective policy so the admin can toggle unattended control for this device alone. The
+    /// toggle writes a device override; a visible "being controlled" banner is always shown regardless.
+    /// </summary>
+    public async Task LoadControlPolicyAsync(long deviceId)
+    {
+        _controlDeviceId = deviceId;
+        try
+        {
+            var p = await _api.GetDevicePolicyAsync(deviceId);
+            _controlSettings = p.Settings;
+            _suppressControlSave = true;
+            UnattendedControl = !p.Settings.RequireControlConsent;
+            _suppressControlSave = false;
+            ControlPolicyLoaded = true;
+            ControlPolicyStatus = null;
+        }
+        catch (Exception ex)
+        {
+            ControlPolicyLoaded = false;
+            ControlPolicyStatus = (ex as ApiException)?.Message ?? ("Couldn't load control settings: " + ex.Message);
+        }
+    }
+
+    partial void OnUnattendedControlChanged(bool value)
+    {
+        if (_suppressControlSave)
+        {
+            return;   // reflecting a freshly loaded policy, not a user action
+        }
+        _ = SaveControlPolicyAsync(value);
+    }
+
+    private async Task SaveControlPolicyAsync(bool unattended)
+    {
+        if (_controlSettings is null || _controlDeviceId == 0)
+        {
+            return;
+        }
+        try
+        {
+            ControlPolicyStatus = "Saving…";
+            var updated = _controlSettings with { RequireControlConsent = !unattended };
+            var resp = await _api.UpdateDevicePolicyAsync(_controlDeviceId, updated);
+            _controlSettings = resp.Settings;
+            ControlPolicyStatus = unattended
+                ? "Unattended control enabled for this device — applies within about 30 seconds."
+                : "Consent will be required for this device — applies within about 30 seconds.";
+        }
+        catch (Exception ex)
+        {
+            // Revert the toggle to the saved state so the UI reflects reality.
+            _suppressControlSave = true;
+            UnattendedControl = !(_controlSettings?.RequireControlConsent ?? true);
+            _suppressControlSave = false;
+            ControlPolicyStatus = (ex as ApiException)?.Message ?? ("Couldn't save: " + ex.Message);
+        }
     }
 
     public async Task StartAsync(long deviceId)

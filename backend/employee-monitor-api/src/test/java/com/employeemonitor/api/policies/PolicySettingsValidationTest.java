@@ -32,7 +32,7 @@ class PolicySettingsValidationTest {
 
     static PolicySettings valid(int screenshotInterval, String tz, String start, String end) {
         return new PolicySettings(true, 300, true, false, true, true, true, false, screenshotInterval,
-                false, 30, 30, 300, start, end, EnumSet.range(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), tz, 90, 30);
+                false, 30, 30, 300, start, end, EnumSet.range(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), tz, 90, 30, true);
     }
 
     private static Set<String> violations(PolicySettings settings) {
@@ -44,6 +44,15 @@ class PolicySettingsValidationTest {
     @Test
     void defaultsAreValid() {
         assertThat(violations(valid(900, "Asia/Kolkata", "09:00", "18:00"))).isEmpty();
+    }
+
+    @Test
+    void requireControlConsentDefaultsToTrueWhenOmitted() {
+        PolicySettings s = new PolicySettings(true, 300, true, false, true, true, true, false, 900,
+                false, 30, 30, 300, "09:00", "18:00", EnumSet.range(DayOfWeek.MONDAY, DayOfWeek.FRIDAY),
+                "UTC", 90, 30, null);
+        assertThat(s.requireControlConsent()).isTrue();
+        assertThat(violations(s)).isEmpty();
     }
 
     @Test

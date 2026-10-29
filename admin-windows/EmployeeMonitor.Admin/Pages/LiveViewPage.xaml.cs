@@ -47,6 +47,7 @@ public sealed partial class LiveViewPage : Page
         _keyHook.Start();   // installed on the UI thread, which has the message loop the hook needs
         if (e.Parameter is long deviceId)
         {
+            await ViewModel.LoadControlPolicyAsync(deviceId);
             await ViewModel.StartAsync(deviceId);
         }
     }

@@ -30,6 +30,9 @@ public partial class PolicyViewModel : ObservableObject
     [ObservableProperty] private bool _screenshots;
     [ObservableProperty] private bool _liveView;
 
+    /// <summary>When true (default), remote control asks the employee on screen first. A visible banner shows during control regardless.</summary>
+    [ObservableProperty] private bool _requireControlConsent = true;
+
     // Numeric settings (doubles for NumberBox binding; ranges enforced by the backend)
     [ObservableProperty] private double _idleThresholdSeconds = 300;
     [ObservableProperty] private double _liveViewMaxMinutes = 30;
@@ -103,7 +106,8 @@ public partial class PolicyViewModel : ObservableObject
                 SessionMonitoring, (int)IdleThresholdSeconds, ApplicationMonitoring, WebsiteMonitoring,
                 UsbMonitoring, NetworkMonitoring, ZscalerMonitoring, Screenshots, ScreenshotIntervalSeconds,
                 LiveView, (int)LiveViewMaxMinutes, (int)HeartbeatIntervalSeconds, (int)PolicySyncIntervalSeconds,
-                MonitoringStart, MonitoringEnd, days, Timezone, (int)RetentionDays, (int)ScreenshotRetentionDays);
+                MonitoringStart, MonitoringEnd, days, Timezone, (int)RetentionDays, (int)ScreenshotRetentionDays,
+                RequireControlConsent);
 
             var updated = await _api.UpdateDefaultPolicyAsync(settings);
             Apply(updated.Settings);
@@ -130,6 +134,7 @@ public partial class PolicyViewModel : ObservableObject
         ZscalerMonitoring = s.ZscalerMonitoring;
         Screenshots = s.Screenshots;
         LiveView = s.LiveView;
+        RequireControlConsent = s.RequireControlConsent;
         IdleThresholdSeconds = s.IdleThresholdSeconds;
         ScreenshotIntervalSeconds = s.ScreenshotIntervalSeconds;
         LiveViewMaxMinutes = s.LiveViewMaxMinutes;

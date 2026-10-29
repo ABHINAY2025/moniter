@@ -38,6 +38,7 @@ builder.Services.AddSingleton<IZscalerProvider, WindowsZscalerProvider>();
 builder.Services.AddSingleton<IRemovableDriveProvider, WindowsRemovableDriveProvider>();
 builder.Services.AddSingleton<IDnsVisitProvider, WindowsDnsVisitProvider>();
 builder.Services.AddSingleton<IScreenCaptureProvider, GdiScreenCaptureProvider>();
+builder.Services.AddSingleton<IScreenshotEventSource, WindowsScreenshotEventSource>();
 builder.Services.AddSingleton<ISystemAudioCapture, WindowsSystemAudioCapture>();
 builder.Services.AddSingleton<IRemoteInputInjector, WindowsRemoteInputInjector>();
 builder.Services.AddSingleton<ISystemClipboard, WindowsClipboard>();

@@ -148,25 +148,58 @@ public class AgentRunnerTests
     }
 
     [Fact]
-    public async Task CapturesAndUploadsScreenshotsWhenEnabled()
+    public async Task CapturesAndUploadsScreenshotWhenEmployeeTakesOne()
     {
-        var api = new FakeBackendApi { Policy = TestData.Policy() with { Screenshots = true, ScreenshotIntervalSeconds = 300 } };
+        var api = new FakeBackendApi { Policy = TestData.Policy() with { Screenshots = true } };
         var store = new CredentialStore(new InMemorySecureStore(), NullLogger<CredentialStore>.Instance);
         var options = Options.Create(new AgentOptions
         {
             BackendBaseUrl = "http://localhost", EnrollmentToken = "enr_test",
             ActivityPollSeconds = 1, EventFlushSeconds = 1, DefaultHeartbeatSeconds = 10,
-            ScreenshotInitialDelaySeconds = 1,
         });
         var capture = new FakeScreenCaptureProvider();
+        var screenshots = new FakeScreenshotEventSource();
         var runner = new AgentRunner(api, store, new FakeSystemInfo(), new FakeInputMonitor(),
             new FakeSystemEventSource(), new FakeClock(), NewCollector(), capture, options,
-            NullLogger<AgentRunner>.Instance);
+            NullLogger<AgentRunner>.Instance, screenshotEvents: screenshots);
 
         using var cts = new CancellationTokenSource();
         var run = runner.RunAsync(cts.Token);
+
+        // No screenshot is stored until the employee actually takes one.
+        await WaitUntil(() => screenshots.Started, TimeSpan.FromSeconds(10));
+        api.ScreenshotsUploaded.Should().Be(0);
+
+        screenshots.Trigger();
         await WaitUntil(() => api.ScreenshotsUploaded >= 1, TimeSpan.FromSeconds(10));
         capture.Captures.Should().BeGreaterThanOrEqualTo(1);
+
+        cts.Cancel();
+        await run;
+    }
+
+    [Fact]
+    public async Task DoesNotCaptureScreenshotsWhenDisabledByPolicy()
+    {
+        var api = new FakeBackendApi { Policy = TestData.Policy() with { Screenshots = false } };
+        var store = new CredentialStore(new InMemorySecureStore(), NullLogger<CredentialStore>.Instance);
+        var options = Options.Create(new AgentOptions
+        {
+            BackendBaseUrl = "http://localhost", EnrollmentToken = "enr_test",
+            ActivityPollSeconds = 1, EventFlushSeconds = 1, DefaultHeartbeatSeconds = 10,
+        });
+        var screenshots = new FakeScreenshotEventSource();
+        var runner = new AgentRunner(api, store, new FakeSystemInfo(), new FakeInputMonitor(),
+            new FakeSystemEventSource(), new FakeClock(), NewCollector(), new FakeScreenCaptureProvider(),
+            options, NullLogger<AgentRunner>.Instance, screenshotEvents: screenshots);
+
+        using var cts = new CancellationTokenSource();
+        var run = runner.RunAsync(cts.Token);
+        await WaitUntil(() => screenshots.Started, TimeSpan.FromSeconds(10));
+
+        screenshots.Trigger();
+        await Task.Delay(500);
+        api.ScreenshotsUploaded.Should().Be(0);   // policy gate blocks storage even when a screenshot is taken
 
         cts.Cancel();
         await run;
